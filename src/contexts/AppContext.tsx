@@ -6,11 +6,11 @@ interface AppContextType {
   emergencyActive: boolean;
   toggleEmergency: () => void;
   selectedHospital: Hospital | null;
-  selectHospital: (hospital: Hospital) => void;
+  selectHospital: (hospital: Hospital | null) => void;
   trafficSignals: TrafficSignal[];
   updateTrafficSignal: (id: string, status: EmergencyStatus) => void;
   currentRoute: Route | null;
-  setCurrentRoute: (route: Route) => void;
+  setCurrentRoute: (route: Route | null) => void;
   ambulanceLocation: [number, number];
   updateAmbulanceLocation: (location: [number, number]) => void;
 }
@@ -22,14 +22,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
   const [trafficSignals, setTrafficSignals] = useState<TrafficSignal[]>(mockTrafficSignals);
   const [currentRoute, setCurrentRoute] = useState<Route | null>(null);
-  const [ambulanceLocation, setAmbulanceLocation] = useState<[number, number]>([40.7128, -74.006]); // Default NYC
+  // Starting position in Lower Manhattan
+  const [ambulanceLocation, setAmbulanceLocation] = useState<[number, number]>([40.7128, -74.0060]);
 
   const toggleEmergency = () => {
-    setEmergencyActive(!emergencyActive);
+    const newEmergencyState = !emergencyActive;
+    setEmergencyActive(newEmergencyState);
+    
+    // Reset traffic signals when emergency is deactivated
+    if (!newEmergencyState) {
+      setTrafficSignals(
+        trafficSignals.map(signal => ({
+          ...signal,
+          status: EmergencyStatus.INACTIVE
+        }))
+      );
+    }
   };
 
-  const selectHospital = (hospital: Hospital) => {
+  const selectHospital = (hospital: Hospital | null) => {
     setSelectedHospital(hospital);
+    
+    // Clear route when hospital is deselected
+    if (!hospital) {
+      setCurrentRoute(null);
+    }
   };
 
   const updateTrafficSignal = (id: string, status: EmergencyStatus) => {
