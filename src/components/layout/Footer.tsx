@@ -7,7 +7,7 @@ const Footer: React.FC = () => {
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="mb-4 md:mb-0">
-            <h3 className="text-xl font-bold">MediRoute</h3>
+            <h3 className="text-xl font-bold">TrafficSense</h3>
             <p className="text-gray-400 text-sm mt-1">
               AI-powered emergency response system
             </p>
@@ -36,7 +36,7 @@ const Footer: React.FC = () => {
         
         <div className="mt-8 pt-4 border-t border-gray-700 flex flex-col sm:flex-row justify-between items-center">
           <p className="text-sm text-gray-400">
-            &copy; {new Date().getFullYear()} MediRoute. All rights reserved.
+            &copy; {new Date().getFullYear()} TrafficSense. All rights reserved.
           </p>
           <p className="text-sm text-gray-400 mt-2 sm:mt-0 flex items-center">
             Made with <Heart className="mx-1 text-red-500 h-4 w-4" /> for saving lives

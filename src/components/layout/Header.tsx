@@ -14,7 +14,7 @@ const Header: React.FC = () => {
           <Link to="/" className="flex items-center gap-2">
             <Ambulance className={`h-8 w-8 ${emergencyActive ? 'text-white' : 'text-red-600'} ${emergencyActive ? 'animate-pulse' : ''}`} />
             <span className={`text-xl font-bold ${emergencyActive ? 'text-white' : 'text-gray-900'}`}>
-              MediRoute
+              TrafficSense
             </span>
           </Link>
 
