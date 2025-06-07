@@ -251,7 +251,7 @@ const SimulationPage: React.FC = () => {
                 >
                   {isSimulationRunning ? (
                     <>
-                      <Pause className="mr-2" size={18} />
+                      <Pause className="mr-2\" size={18} />
                       Pause
                     </>
                   ) : (
