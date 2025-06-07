@@ -3,6 +3,7 @@ import { Clock, User, MapPin, Guitar as Hospital } from 'lucide-react';
 import MapView from '../components/map/MapView';
 import EmergencyToggle from '../components/common/EmergencyToggle';
 import HospitalSelect from '../components/common/HospitalSelect';
+import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import NotificationPanel from '../components/notifications/NotificationPanel';
 import { useAppContext } from '../contexts/AppContext';
@@ -120,9 +121,16 @@ const DriverDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Ambulance Driver Dashboard</h1>
-        <p className="text-gray-600">Manage emergency routes and monitor traffic signals</p>
+      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Ambulance Driver Dashboard</h1>
+          <p className="text-gray-600">Manage emergency routes and monitor traffic signals</p>
+        </div>
+        
+        {/* Reset Button in Header */}
+        <div className="mt-4 md:mt-0">
+          <ResetButton />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -13,6 +13,7 @@ interface AppContextType {
   setCurrentRoute: (route: Route | null) => void;
   ambulanceLocation: [number, number];
   updateAmbulanceLocation: (location: [number, number]) => void;
+  resetSystem: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -61,6 +62,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setAmbulanceLocation(location);
   };
 
+  const resetSystem = () => {
+    // Reset ambulance to original position
+    setAmbulanceLocation([40.7128, -74.0060]);
+    
+    // Reset all traffic signals to inactive
+    setTrafficSignals(
+      mockTrafficSignals.map(signal => ({
+        ...signal,
+        status: EmergencyStatus.INACTIVE
+      }))
+    );
+    
+    // Deactivate emergency mode
+    setEmergencyActive(false);
+    
+    // Clear selected hospital and route
+    setSelectedHospital(null);
+    setCurrentRoute(null);
+  };
+
   const value = {
     emergencyActive,
     toggleEmergency,
@@ -72,6 +93,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCurrentRoute,
     ambulanceLocation,
     updateAmbulanceLocation,
+    resetSystem,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

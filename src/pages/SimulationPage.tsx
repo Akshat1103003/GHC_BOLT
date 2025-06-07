@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Play, Pause, RotateCcw, AlertCircle, Volume2, VolumeX } from 'lucide-react';
 import MapView from '../components/map/MapView';
 import HospitalSelect from '../components/common/HospitalSelect';
+import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import TrafficSignal from '../components/traffic/TrafficSignal';
 import { useAppContext } from '../contexts/AppContext';
@@ -193,9 +194,16 @@ const SimulationPage: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Interactive Simulation</h1>
-        <p className="text-gray-600">Experience the emergency response system in action</p>
+      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Interactive Simulation</h1>
+          <p className="text-gray-600">Experience the emergency response system in action</p>
+        </div>
+        
+        {/* Reset Button in Header */}
+        <div className="mt-4 md:mt-0">
+          <ResetButton />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
