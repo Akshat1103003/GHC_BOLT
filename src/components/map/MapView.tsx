@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import { Icon } from 'leaflet';
-import { Ambulance, Building2, MapPin, AlertTriangle } from 'lucide-react';
+import { Ambulance, Building2, MapPin, AlertTriangle, Navigation } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { EmergencyStatus } from '../../types';
+import { getNearbyPOIs } from '../../utils/mockData';
 
 import 'leaflet/dist/leaflet.css';
 
@@ -26,6 +27,7 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
   } = useAppContext();
 
   const [alertingSignals, setAlertingSignals] = useState<Set<string>>(new Set());
+  const [nearbyPOIs, setNearbyPOIs] = useState<any[]>([]);
 
   // Move the Leaflet icon fix inside the component
   useEffect(() => {
@@ -39,6 +41,12 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
       shadowUrl,
     });
   }, []);
+
+  // Update nearby POIs when ambulance location changes
+  useEffect(() => {
+    const pois = getNearbyPOIs(ambulanceLocation, 3); // 3km radius
+    setNearbyPOIs(pois);
+  }, [ambulanceLocation]);
 
   // Monitor ambulance proximity to traffic signals
   useEffect(() => {
@@ -148,6 +156,38 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
     iconAnchor: [16, 16],
   });
 
+  // Create POI icons
+  const getPOIIcon = (type: string) => {
+    let color = '#6B7280';
+    let symbol = '●';
+    
+    switch (type) {
+      case 'fire_station':
+        color = '#EF4444';
+        symbol = '🚒';
+        break;
+      case 'police_station':
+        color = '#3B82F6';
+        symbol = '🚔';
+        break;
+      case 'emergency_service':
+        color = '#F59E0B';
+        symbol = '🚨';
+        break;
+    }
+    
+    return new Icon({
+      iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <text x="12" y="16" text-anchor="middle" font-size="12" fill="white">${symbol}</text>
+        </svg>
+      `),
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    });
+  };
+
   // Create traffic signal icons based on status and alert state
   const getTrafficSignalIcon = (signalId: string, status: EmergencyStatus) => {
     const isAlerting = alertingSignals.has(signalId);
@@ -208,6 +248,28 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
         </div>
       )}
       
+      {/* Map Controls */}
+      <div className="bg-gray-100 p-2 border-b flex items-center justify-between">
+        <div className="flex items-center space-x-2 text-sm text-gray-600">
+          <Navigation size={16} />
+          <span>Real NYC Locations</span>
+        </div>
+        <div className="flex items-center space-x-4 text-xs">
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-red-600 rounded-full mr-1"></div>
+            <span>Ambulance</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-blue-600 rounded-full mr-1"></div>
+            <span>Hospitals</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-amber-500 rounded-full mr-1"></div>
+            <span>Traffic Signals</span>
+          </div>
+        </div>
+      </div>
+      
       <MapContainer
         center={ambulanceLocation}
         zoom={14}
@@ -226,6 +288,10 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
               <p className="font-bold text-red-600">🚑 Emergency Ambulance</p>
               <p className="text-sm text-gray-600">
                 Location: {ambulanceLocation[0].toFixed(4)}, {ambulanceLocation[1].toFixed(4)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Current Area: {ambulanceLocation[0] > 40.75 ? 'Upper Manhattan' : 
+                             ambulanceLocation[0] > 40.73 ? 'Midtown Manhattan' : 'Lower Manhattan'}
               </p>
               {emergencyActive && <p className="text-red-600 font-bold mt-1">🚨 EMERGENCY ACTIVE</p>}
               {selectedHospital && (
@@ -261,6 +327,9 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
                     ))}
                   </div>
                 </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Distance: {calculateDistance(ambulanceLocation, selectedHospital.coordinates).toFixed(1)}km
+                </p>
               </div>
             </Popup>
           </Marker>
@@ -296,6 +365,28 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
                 <p className="text-xs text-gray-500 mt-1">
                   Distance from ambulance: {calculateDistance(ambulanceLocation, signal.coordinates).toFixed(1)}km
                 </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Real NYC intersection
+                </p>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+        
+        {/* Nearby POIs */}
+        {nearbyPOIs.map((poi, index) => (
+          <Marker 
+            key={`poi-${index}`} 
+            position={poi.coordinates} 
+            icon={getPOIIcon(poi.type)}
+          >
+            <Popup>
+              <div>
+                <p className="font-bold text-gray-800">{poi.name}</p>
+                <p className="text-sm text-gray-600 capitalize">{poi.type.replace('_', ' ')}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Distance: {calculateDistance(ambulanceLocation, poi.coordinates).toFixed(1)}km
+                </p>
               </div>
             </Popup>
           </Marker>
@@ -315,23 +406,30 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
         <MapUpdater />
       </MapContainer>
       
-      {/* Developer Alert Panel */}
-      {alertingSignals.size > 0 && (
-        <div className="bg-gray-900 text-white p-3 border-t">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">🔧 Developer Alert System Status</p>
-              <p className="text-xs text-gray-300">
-                {alertingSignals.size} signal(s) within 2km range - Alerts triggered
-              </p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-xs">ACTIVE</span>
-            </div>
+      {/* Real Location Info Panel */}
+      <div className="bg-gray-50 p-3 border-t">
+        <div className="flex items-center justify-between text-sm">
+          <div>
+            <p className="font-medium text-gray-800">🗽 Real NYC Emergency Response System</p>
+            <p className="text-gray-600">
+              Featuring actual hospital and intersection coordinates in Manhattan
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-500">
+              {trafficSignals.length} Real Intersections • {nearbyPOIs.length} Emergency Services Nearby
+            </p>
+            {alertingSignals.size > 0 && (
+              <div className="flex items-center justify-end mt-1">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></div>
+                <span className="text-xs text-red-600 font-medium">
+                  {alertingSignals.size} Signal(s) Active
+                </span>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
