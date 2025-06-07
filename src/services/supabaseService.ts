@@ -1,8 +1,11 @@
 import { supabase } from '../lib/supabase';
 import { Hospital, TrafficSignal, EmergencyStatus, Route, Notification } from '../types';
 
+// Use a proper UUID for the default ambulance ID
+const DEFAULT_AMBULANCE_ID = '550e8400-e29b-41d4-a716-446655440000';
+
 // Ambulance operations
-export const getAmbulance = async (id: string = 'a1') => {
+export const getAmbulance = async (id: string = DEFAULT_AMBULANCE_ID) => {
   const { data, error } = await supabase
     .from('ambulances')
     .select('*')
@@ -18,7 +21,7 @@ export const getAmbulance = async (id: string = 'a1') => {
 };
 
 export const updateAmbulanceLocation = async (
-  id: string = 'a1',
+  id: string = DEFAULT_AMBULANCE_ID,
   latitude: number,
   longitude: number,
   status?: 'idle' | 'en_route' | 'at_hospital'

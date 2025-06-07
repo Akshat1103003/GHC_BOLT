@@ -2,6 +2,9 @@ import { Route, TrafficSignal, EmergencyStatus } from '../types';
 import { notifyTrafficSignal, notifyHospital } from './notificationService';
 import { updateAmbulanceLocation, updateTrafficSignalStatus } from './supabaseService';
 
+// Use a proper UUID for the default ambulance ID
+const DEFAULT_AMBULANCE_ID = '550e8400-e29b-41d4-a716-446655440000';
+
 // Calculate distance between two points (Haversine formula)
 const calculateDistance = (point1: [number, number], point2: [number, number]): number => {
   const R = 6371; // Earth's radius in kilometers
@@ -67,7 +70,7 @@ export const simulateAmbulanceMovement = (
     
     // Update ambulance location in database
     try {
-      await updateAmbulanceLocation('a1', currentPosition[0], currentPosition[1], 'en_route');
+      await updateAmbulanceLocation(DEFAULT_AMBULANCE_ID, currentPosition[0], currentPosition[1], 'en_route');
     } catch (error) {
       console.error('Error updating ambulance location in database:', error);
     }
@@ -133,7 +136,7 @@ export const simulateAmbulanceMovement = (
     } else {
       // Final waypoint reached
       try {
-        await updateAmbulanceLocation('a1', currentPosition[0], currentPosition[1], 'at_hospital');
+        await updateAmbulanceLocation(DEFAULT_AMBULANCE_ID, currentPosition[0], currentPosition[1], 'at_hospital');
       } catch (error) {
         console.error('Error updating ambulance status to at_hospital:', error);
       }
