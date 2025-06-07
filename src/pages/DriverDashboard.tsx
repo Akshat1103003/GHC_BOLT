@@ -178,8 +178,8 @@ const DriverDashboard: React.FC = () => {
           />
         </div>
 
-        {/* Middle and right columns - Map and status */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Middle and right columns - Map and status with separate scrolling */}
+        <div className="lg:col-span-2 h-screen overflow-y-auto space-y-6 pr-2">
           {/* Status cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <StatusCard
