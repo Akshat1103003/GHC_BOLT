@@ -17,7 +17,7 @@ const HomePage: React.FC = () => {
         <div className="flex items-center justify-center">
           {dataSource === 'supabase' ? (
             <>
-              <Database className="mr-2 text-green-600" size={20} />
+              <Database className="mr-2 text-green-600\" size={20} />
               <span className="text-green-800 font-medium">
                 Connected to Live Database - Real-time synchronization active
               </span>
