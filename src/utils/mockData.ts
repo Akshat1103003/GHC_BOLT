@@ -289,17 +289,17 @@ export const calculateDistance = (
   return R * c;
 };
 
-// Enhanced duration calculation for emergency vehicles in NYC traffic
+// Enhanced duration calculation for emergency vehicles in NYC traffic (SLOWER SPEED)
 export const calculateDuration = (
   point1: [number, number],
   point2: [number, number]
 ): number => {
-  // Emergency vehicles in NYC average 45-55 km/h with traffic priority
+  // SLOWER: Emergency vehicles in NYC now average 30-35 km/h with traffic priority
   const distance = calculateDistance(point1, point2);
-  const baseSpeed = 50; // km/h
+  const baseSpeed = 35; // km/h (reduced from 50)
   
   // Add time penalties for traffic density in Manhattan
-  const manhattanPenalty = 1.2; // 20% slower due to dense traffic
+  const manhattanPenalty = 1.4; // 40% slower due to dense traffic (increased from 1.2)
   
   return (distance / baseSpeed) * 60 * manhattanPenalty; // Convert to minutes
 };
