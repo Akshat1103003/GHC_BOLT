@@ -115,9 +115,9 @@ const DriverDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column - Controls */}
-        <div className="lg:col-span-1 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+        {/* Left column - Controls with separate scrolling */}
+        <div className="lg:col-span-1 h-full overflow-y-auto space-y-6 pr-2">
           {/* Emergency toggle */}
           <EmergencyToggle className="mb-6" />
 
@@ -178,10 +178,10 @@ const DriverDashboard: React.FC = () => {
           />
         </div>
 
-        {/* Middle and right columns - Map and status with separate scrolling */}
-        <div className="lg:col-span-2 h-screen overflow-y-auto space-y-6 pr-2">
+        {/* Right columns - Map and status centered */}
+        <div className="lg:col-span-2 h-full flex flex-col space-y-6">
           {/* Status cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
             <StatusCard
               title="Route Status"
               status={routeStatus.status as any}
@@ -200,14 +200,18 @@ const DriverDashboard: React.FC = () => {
             />
           </div>
 
-          {/* Map view */}
-          <MapView />
+          {/* Map view - centered and prominent */}
+          <div className="flex-grow min-h-0">
+            <MapView className="h-full" />
+          </div>
 
           {/* Notifications */}
-          <NotificationPanel
-            notifications={notifications}
-            onMarkAsRead={markNotificationAsRead}
-          />
+          <div className="flex-shrink-0 max-h-64 overflow-hidden">
+            <NotificationPanel
+              notifications={notifications}
+              onMarkAsRead={markNotificationAsRead}
+            />
+          </div>
         </div>
       </div>
     </div>
