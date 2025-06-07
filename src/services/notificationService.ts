@@ -1,5 +1,14 @@
-import { TrafficSignal, Hospital, EmergencyStatus } from '../types';
-import { createNotification } from './supabaseService';
+import { TrafficSignal, Hospital, EmergencyStatus, Notification } from '../types';
+
+// Check if Supabase is available
+const isSupabaseAvailable = () => {
+  return import.meta.env.VITE_SUPABASE_URL && 
+         import.meta.env.VITE_SUPABASE_ANON_KEY && 
+         import.meta.env.VITE_DATA_SOURCE !== 'mock';
+};
+
+// Mock notification storage for when Supabase is not available
+let mockNotifications: Notification[] = [];
 
 // Simulate sending notifications to traffic signals
 export const notifyTrafficSignal = async (
@@ -24,11 +33,25 @@ export const notifyTrafficSignal = async (
         message = `Traffic signal ${trafficSignal.intersection} status updated to ${status}`;
     }
     
-    await createNotification({
-      type: 'trafficSignal',
-      target_id: trafficSignal.id,
-      message,
-    });
+    if (isSupabaseAvailable()) {
+      const { createNotification } = await import('./supabaseService');
+      await createNotification({
+        type: 'trafficSignal',
+        target_id: trafficSignal.id,
+        message,
+      });
+    } else {
+      // Store in mock notifications
+      const notification: Notification = {
+        id: `n-${Date.now()}-${Math.random()}`,
+        type: 'trafficSignal',
+        targetId: trafficSignal.id,
+        message,
+        timestamp: new Date(),
+        read: false,
+      };
+      mockNotifications.unshift(notification);
+    }
     
     console.log(`Notified traffic signal ${trafficSignal.id} at ${trafficSignal.intersection}`);
     console.log(`Status: ${status}, ETA: ${estimatedTimeOfArrival} seconds`);
@@ -51,11 +74,25 @@ export const notifyHospital = async (
   try {
     const message = `Ambulance incoming to ${hospital.name} - Patient: ${patientInfo.condition}, ETA: ${patientInfo.eta} minutes`;
     
-    await createNotification({
-      type: 'hospital',
-      target_id: hospital.id,
-      message,
-    });
+    if (isSupabaseAvailable()) {
+      const { createNotification } = await import('./supabaseService');
+      await createNotification({
+        type: 'hospital',
+        target_id: hospital.id,
+        message,
+      });
+    } else {
+      // Store in mock notifications
+      const notification: Notification = {
+        id: `n-${Date.now()}-${Math.random()}`,
+        type: 'hospital',
+        targetId: hospital.id,
+        message,
+        timestamp: new Date(),
+        read: false,
+      };
+      mockNotifications.unshift(notification);
+    }
     
     console.log(`Notified hospital ${hospital.name}`);
     console.log(`Patient condition: ${patientInfo.condition}, ETA: ${patientInfo.eta} minutes`);
@@ -67,19 +104,48 @@ export const notifyHospital = async (
   }
 };
 
-// Legacy functions for backward compatibility
-export const getNotifications = async (entityId: string, entityType: 'hospital' | 'trafficSignal') => {
-  const { getNotifications: getNotificationsFromDB } = await import('./supabaseService');
-  return getNotificationsFromDB(entityId, entityType);
+// Get notifications for a specific entity
+export const getNotifications = async (entityId: string, entityType: 'hospital' | 'trafficSignal'): Promise<Notification[]> => {
+  if (isSupabaseAvailable()) {
+    try {
+      const { getNotifications: getNotificationsFromDB } = await import('./supabaseService');
+      return getNotificationsFromDB(entityId, entityType);
+    } catch (error) {
+      console.error('Error fetching notifications from Supabase:', error);
+    }
+  }
+  
+  // Return mock notifications
+  return mockNotifications.filter(
+    notification => notification.targetId === entityId && notification.type === entityType
+  );
 };
 
 export const markNotificationAsRead = async (notificationId: string): Promise<boolean> => {
-  try {
-    const { markNotificationAsRead: markAsRead } = await import('./supabaseService');
-    await markAsRead(notificationId);
-    return true;
-  } catch (error) {
-    console.error('Error marking notification as read:', error);
-    return false;
+  if (isSupabaseAvailable()) {
+    try {
+      const { markNotificationAsRead: markAsRead } = await import('./supabaseService');
+      await markAsRead(notificationId);
+      return true;
+    } catch (error) {
+      console.error('Error marking notification as read in Supabase:', error);
+    }
   }
+  
+  // Update mock notifications
+  mockNotifications = mockNotifications.map(notification =>
+    notification.id === notificationId ? { ...notification, read: true } : notification
+  );
+  
+  return true;
+};
+
+// Get all notifications (for mock mode)
+export const getAllNotifications = (): Notification[] => {
+  return mockNotifications;
+};
+
+// Clear all notifications (for testing)
+export const clearAllNotifications = () => {
+  mockNotifications = [];
 };

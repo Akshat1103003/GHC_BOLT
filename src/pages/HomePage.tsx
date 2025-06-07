@@ -1,10 +1,38 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Ambulance, Guitar as Hospital, Map, Activity, ArrowRight, Shield, Clock, Users } from 'lucide-react';
+import { Ambulance, Guitar as Hospital, Map, Activity, ArrowRight, Shield, Clock, Users, Database, Wifi } from 'lucide-react';
+import { useAppContext } from '../contexts/AppContext';
 
 const HomePage: React.FC = () => {
+  const { dataSource } = useAppContext();
+
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Data Source Banner */}
+      <div className={`mb-6 p-4 rounded-lg border ${
+        dataSource === 'supabase' 
+          ? 'bg-green-50 border-green-200' 
+          : 'bg-yellow-50 border-yellow-200'
+      }`}>
+        <div className="flex items-center justify-center">
+          {dataSource === 'supabase' ? (
+            <>
+              <Database className="mr-2 text-green-600" size={20} />
+              <span className="text-green-800 font-medium">
+                Connected to Live Database - Real-time synchronization active
+              </span>
+            </>
+          ) : (
+            <>
+              <Wifi className="mr-2 text-yellow-600" size={20} />
+              <span className="text-yellow-800 font-medium">
+                Using Mock Data - Simulated real-time functionality
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section className="mb-12">
         <div className="relative bg-gradient-to-r from-red-600 to-red-800 rounded-2xl overflow-hidden">

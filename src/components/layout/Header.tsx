@@ -1,11 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Ambulance, Guitar as Hospital, Home } from 'lucide-react';
+import { Ambulance, Guitar as Hospital, Home, Database, Wifi, WifiOff } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 
 const Header: React.FC = () => {
   const location = useLocation();
-  const { emergencyActive } = useAppContext();
+  const { emergencyActive, dataSource } = useAppContext();
 
   return (
     <header className={`sticky top-0 z-50 ${emergencyActive ? 'bg-red-600' : 'bg-white'} shadow-md transition-colors duration-300`}>
@@ -24,33 +24,54 @@ const Header: React.FC = () => {
             <NavLink to="/hospital" icon={<Hospital size={18} />} label="Hospital" active={location.pathname === '/hospital'} emergencyMode={emergencyActive} />
           </nav>
 
-          {emergencyActive && (
-            <div className="flex items-center">
-              <span className="hidden md:inline-block text-white font-medium mr-2">EMERGENCY ACTIVE</span>
-              <span className="inline-flex h-3 w-3 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
-              </span>
+          <div className="flex items-center space-x-4">
+            {/* Data Source Indicator */}
+            <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
+              dataSource === 'supabase' 
+                ? emergencyActive ? 'bg-green-700 text-white' : 'bg-green-100 text-green-800'
+                : emergencyActive ? 'bg-yellow-700 text-white' : 'bg-yellow-100 text-yellow-800'
+            }`}>
+              {dataSource === 'supabase' ? (
+                <>
+                  <Database size={12} />
+                  <span>Live Data</span>
+                </>
+              ) : (
+                <>
+                  <Wifi size={12} />
+                  <span>Mock Data</span>
+                </>
+              )}
             </div>
-          )}
 
-          {/* Mobile nav */}
-          <div className="md:hidden flex items-center space-x-4">
             {emergencyActive && (
-              <span className="inline-flex h-3 w-3 relative mr-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
-              </span>
+              <div className="flex items-center">
+                <span className="hidden md:inline-block text-white font-medium mr-2">EMERGENCY ACTIVE</span>
+                <span className="inline-flex h-3 w-3 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                </span>
+              </div>
             )}
-            <Link to="/" className={`p-2 rounded-full ${location.pathname === '/' ? 'bg-gray-100' : ''} ${emergencyActive ? 'text-white' : 'text-gray-700'}`}>
-              <Home size={20} />
-            </Link>
-            <Link to="/driver" className={`p-2 rounded-full ${location.pathname === '/driver' ? 'bg-gray-100' : ''} ${emergencyActive ? 'text-white' : 'text-gray-700'}`}>
-              <Ambulance size={20} />
-            </Link>
-            <Link to="/hospital" className={`p-2 rounded-full ${location.pathname === '/hospital' ? 'bg-gray-100' : ''} ${emergencyActive ? 'text-white' : 'text-gray-700'}`}>
-              <Hospital size={20} />
-            </Link>
+
+            {/* Mobile nav */}
+            <div className="md:hidden flex items-center space-x-4">
+              {emergencyActive && (
+                <span className="inline-flex h-3 w-3 relative mr-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                </span>
+              )}
+              <Link to="/" className={`p-2 rounded-full ${location.pathname === '/' ? 'bg-gray-100' : ''} ${emergencyActive ? 'text-white' : 'text-gray-700'}`}>
+                <Home size={20} />
+              </Link>
+              <Link to="/driver" className={`p-2 rounded-full ${location.pathname === '/driver' ? 'bg-gray-100' : ''} ${emergencyActive ? 'text-white' : 'text-gray-700'}`}>
+                <Ambulance size={20} />
+              </Link>
+              <Link to="/hospital" className={`p-2 rounded-full ${location.pathname === '/hospital' ? 'bg-gray-100' : ''} ${emergencyActive ? 'text-white' : 'text-gray-700'}`}>
+                <Hospital size={20} />
+              </Link>
+            </div>
           </div>
         </div>
       </div>
