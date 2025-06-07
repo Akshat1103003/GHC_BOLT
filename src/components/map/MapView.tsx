@@ -159,20 +159,20 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
   // Create POI icons
   const getPOIIcon = (type: string) => {
     let color = '#6B7280';
-    let symbol = '●';
+    let symbol = 'S';
     
     switch (type) {
       case 'fire_station':
         color = '#EF4444';
-        symbol = '🚒';
+        symbol = 'F';
         break;
       case 'police_station':
         color = '#3B82F6';
-        symbol = '🚔';
+        symbol = 'P';
         break;
       case 'emergency_service':
         color = '#F59E0B';
-        symbol = '🚨';
+        symbol = 'E';
         break;
     }
     
