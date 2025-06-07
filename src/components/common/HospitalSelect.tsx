@@ -47,8 +47,8 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-md ${className}`}>
-      <div className="p-4 border-b">
+    <div className={`bg-white rounded-lg shadow-md flex flex-col ${className}`}>
+      <div className="p-4 border-b flex-shrink-0">
         <h2 className="text-xl font-semibold text-gray-800 mb-2 flex items-center">
           <Navigation className="mr-2" size={20} />
           Select NYC Hospital
@@ -68,7 +68,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         </p>
       </div>
 
-      <div className="max-h-[400px] overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {sortedHospitals.length === 0 ? (
           <div className="p-4 text-center text-gray-500">No hospitals found matching your search.</div>
         ) : (
@@ -89,19 +89,19 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                   onClick={() => onSelect(hospital)}
                 >
                   <div className="flex justify-between items-start">
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-gray-900 flex items-center">
                         {hospital.name}
-                        {isSelected && <CheckCircle className="ml-2 text-blue-500\" size={16} />}
+                        {isSelected && <CheckCircle className="ml-2 text-blue-500 flex-shrink-0" size={16} />}
                       </h3>
                       
                       <div className="mt-1 flex items-center text-sm text-gray-500">
-                        <MapPin size={14} className="mr-1" />
-                        <span>{hospital.address}</span>
+                        <MapPin size={14} className="mr-1 flex-shrink-0" />
+                        <span className="truncate">{hospital.address}</span>
                       </div>
                       
                       <div className="mt-1 flex items-center text-sm text-gray-500">
-                        <Phone size={14} className="mr-1" />
+                        <Phone size={14} className="mr-1 flex-shrink-0" />
                         <span>{hospital.phone}</span>
                       </div>
                       
@@ -122,12 +122,12 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                       </div>
                     </div>
 
-                    <div className="ml-4 text-right">
-                      <div className="text-sm font-medium text-gray-900 flex items-center">
+                    <div className="ml-4 text-right flex-shrink-0">
+                      <div className="text-sm font-medium text-gray-900 flex items-center justify-end">
                         <Navigation size={12} className="mr-1" />
                         {distance.toFixed(1)} km
                       </div>
-                      <div className="text-sm text-gray-500 flex items-center">
+                      <div className="text-sm text-gray-500 flex items-center justify-end">
                         <Clock size={12} className="mr-1" />
                         {Math.ceil(duration)} min
                       </div>
@@ -171,7 +171,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
       </div>
       
       {/* Footer with real data info */}
-      <div className="p-3 bg-gray-50 border-t">
+      <div className="p-3 bg-gray-50 border-t flex-shrink-0">
         <p className="text-xs text-gray-600 text-center">
           🏥 {hospitals.length} Real NYC Hospitals • 📍 Actual GPS Coordinates • 🚨 Live Emergency Status
         </p>
