@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import { Icon } from 'leaflet';
-import { Ambulance, Building2, MapPin, AlertTriangle, Navigation } from 'lucide-react';
+import { Ambulance, Building2, MapPin, AlertTriangle, Navigation, Globe } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { EmergencyStatus } from '../../types';
 import { getNearbyPOIs } from '../../utils/mockData';
@@ -44,7 +44,7 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
 
   // Update nearby POIs when ambulance location changes
   useEffect(() => {
-    const pois = getNearbyPOIs(ambulanceLocation, 3); // 3km radius
+    const pois = getNearbyPOIs(ambulanceLocation, 50); // 50km radius for global view
     setNearbyPOIs(pois);
   }, [ambulanceLocation]);
 
@@ -60,8 +60,8 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
     trafficSignals.forEach(signal => {
       const distance = calculateDistance(ambulanceLocation, signal.coordinates);
       
-      // If ambulance is within 2km of traffic signal
-      if (distance <= 2.0) {
+      // If ambulance is within 5km of traffic signal (increased for global view)
+      if (distance <= 5.0) {
         newAlertingSignals.add(signal.id);
         
         // Show alert notification
@@ -115,6 +115,54 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
         document.body.removeChild(alertDiv);
       }
     }, 5000);
+  };
+
+  // Get location name from coordinates
+  const getLocationName = (coordinates: [number, number]) => {
+    const [lat, lng] = coordinates;
+    
+    // NYC area
+    if (lat >= 40.7 && lat <= 40.8 && lng >= -74.1 && lng <= -73.9) {
+      return 'New York City, USA';
+    }
+    // London area
+    if (lat >= 51.4 && lat <= 51.6 && lng >= -0.3 && lng <= 0.1) {
+      return 'London, UK';
+    }
+    // Paris area
+    if (lat >= 48.8 && lat <= 48.9 && lng >= 2.2 && lng <= 2.5) {
+      return 'Paris, France';
+    }
+    // Tokyo area
+    if (lat >= 35.6 && lat <= 35.8 && lng >= 139.6 && lng <= 139.8) {
+      return 'Tokyo, Japan';
+    }
+    // Sydney area
+    if (lat >= -33.9 && lat <= -33.8 && lng >= 151.1 && lng <= 151.3) {
+      return 'Sydney, Australia';
+    }
+    // Toronto area
+    if (lat >= 43.6 && lat <= 43.7 && lng >= -79.5 && lng <= -79.3) {
+      return 'Toronto, Canada';
+    }
+    // Mumbai area
+    if (lat >= 19.0 && lat <= 19.1 && lng >= 72.8 && lng <= 72.9) {
+      return 'Mumbai, India';
+    }
+    // Berlin area
+    if (lat >= 52.4 && lat <= 52.6 && lng >= 13.3 && lng <= 13.5) {
+      return 'Berlin, Germany';
+    }
+    // Dubai area
+    if (lat >= 25.1 && lat <= 25.3 && lng >= 55.2 && lng <= 55.4) {
+      return 'Dubai, UAE';
+    }
+    // Singapore area
+    if (lat >= 1.2 && lat <= 1.4 && lng >= 103.7 && lng <= 103.9) {
+      return 'Singapore';
+    }
+    
+    return 'Global Location';
   };
 
   // Create custom icons
@@ -232,9 +280,13 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
     
     useEffect(() => {
       if (emergencyActive) {
-        map.setView(ambulanceLocation, Math.max(map.getZoom(), 13));
+        // For global view, use a wider zoom level
+        const zoomLevel = selectedHospital ? 
+          (calculateDistance(ambulanceLocation, selectedHospital.coordinates) > 100 ? 6 : 10) : 
+          10;
+        map.setView(ambulanceLocation, Math.max(map.getZoom(), zoomLevel));
       }
-    }, [ambulanceLocation, map, emergencyActive]);
+    }, [ambulanceLocation, map, emergencyActive, selectedHospital]);
     
     return null;
   };
@@ -244,15 +296,15 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
       {/* Alert Status Bar */}
       {alertingSignals.size > 0 && (
         <div className="bg-red-600 text-white p-2 text-center font-medium animate-pulse">
-          🚨 EMERGENCY ALERT: {alertingSignals.size} Traffic Signal(s) Notified
+          🚨 EMERGENCY ALERT: {alertingSignals.size} Traffic Signal(s) Notified Globally
         </div>
       )}
       
       {/* Map Controls */}
       <div className="bg-gray-100 p-2 border-b flex items-center justify-between">
         <div className="flex items-center space-x-2 text-sm text-gray-600">
-          <Navigation size={16} />
-          <span>Real NYC Locations</span>
+          <Globe size={16} />
+          <span>Global Emergency Response System</span>
         </div>
         <div className="flex items-center space-x-4 text-xs">
           <div className="flex items-center">
@@ -272,7 +324,9 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
       
       <MapContainer
         center={ambulanceLocation}
-        zoom={14}
+        zoom={selectedHospital ? 
+          (calculateDistance(ambulanceLocation, selectedHospital.coordinates) > 100 ? 6 : 10) : 
+          10}
         style={{ height: '500px', width: '100%' }}
         className="z-0"
       >
@@ -290,8 +344,7 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
                 Location: {ambulanceLocation[0].toFixed(4)}, {ambulanceLocation[1].toFixed(4)}
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Current Area: {ambulanceLocation[0] > 40.75 ? 'Upper Manhattan' : 
-                             ambulanceLocation[0] > 40.73 ? 'Midtown Manhattan' : 'Lower Manhattan'}
+                Current Area: {getLocationName(ambulanceLocation)}
               </p>
               {emergencyActive && <p className="text-red-600 font-bold mt-1">🚨 EMERGENCY ACTIVE</p>}
               {selectedHospital && (
@@ -330,6 +383,9 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
                 <p className="text-xs text-gray-500 mt-2">
                   Distance: {calculateDistance(ambulanceLocation, selectedHospital.coordinates).toFixed(1)}km
                 </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {getLocationName(selectedHospital.coordinates)}
+                </p>
               </div>
             </Popup>
           </Marker>
@@ -366,7 +422,7 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
                   Distance from ambulance: {calculateDistance(ambulanceLocation, signal.coordinates).toFixed(1)}km
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Real NYC intersection
+                  {getLocationName(signal.coordinates)}
                 </p>
               </div>
             </Popup>
@@ -387,6 +443,9 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
                 <p className="text-xs text-gray-500 mt-1">
                   Distance: {calculateDistance(ambulanceLocation, poi.coordinates).toFixed(1)}km
                 </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {getLocationName(poi.coordinates)}
+                </p>
               </div>
             </Popup>
           </Marker>
@@ -406,24 +465,24 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
         <MapUpdater />
       </MapContainer>
       
-      {/* Real Location Info Panel */}
+      {/* Global Location Info Panel */}
       <div className="bg-gray-50 p-3 border-t">
         <div className="flex items-center justify-between text-sm">
           <div>
-            <p className="font-medium text-gray-800">🗽 Real NYC Emergency Response System</p>
+            <p className="font-medium text-gray-800">🌍 Global Emergency Response System</p>
             <p className="text-gray-600">
-              Featuring actual hospital and intersection coordinates in Manhattan
+              Featuring hospitals and intersections from major cities worldwide
             </p>
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-500">
-              {trafficSignals.length} Real Intersections • {nearbyPOIs.length} Emergency Services Nearby
+              {trafficSignals.length} Global Intersections • {nearbyPOIs.length} Emergency Services Nearby
             </p>
             {alertingSignals.size > 0 && (
               <div className="flex items-center justify-end mt-1">
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></div>
                 <span className="text-xs text-red-600 font-medium">
-                  {alertingSignals.size} Signal(s) Active
+                  {alertingSignals.size} Signal(s) Active Globally
                 </span>
               </div>
             )}

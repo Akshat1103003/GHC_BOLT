@@ -1,12 +1,13 @@
 import { Hospital, TrafficSignal, EmergencyStatus, Route } from '../types';
 
-// Real hospitals in New York City with actual coordinates
+// Global hospitals from various cities and countries with actual coordinates
 export const mockHospitals: Hospital[] = [
+  // New York City, USA
   {
     id: 'h1',
     name: 'NewYork-Presbyterian Hospital',
-    address: '525 E 68th St, New York, NY 10065',
-    coordinates: [40.7677, -73.9537], // Real coordinates - Upper East Side
+    address: '525 E 68th St, New York, NY 10065, USA',
+    coordinates: [40.7677, -73.9537],
     phone: '(212) 746-5454',
     specialties: ['Emergency', 'Trauma', 'Cardiology', 'Neurosurgery'],
     emergencyReady: true,
@@ -14,140 +15,287 @@ export const mockHospitals: Hospital[] = [
   {
     id: 'h2',
     name: 'Mount Sinai Hospital',
-    address: '1 Gustave L. Levy Pl, New York, NY 10029',
-    coordinates: [40.7903, -73.9509], // Real coordinates - Upper East Side
+    address: '1 Gustave L. Levy Pl, New York, NY 10029, USA',
+    coordinates: [40.7903, -73.9509],
     phone: '(212) 241-6500',
     specialties: ['Emergency', 'Neurology', 'Pediatrics', 'Oncology'],
     emergencyReady: true,
   },
+
+  // London, UK
   {
     id: 'h3',
-    name: 'NYU Langone Health',
-    address: '550 1st Ave, New York, NY 10016',
-    coordinates: [40.7424, -73.9731], // Real coordinates - Kips Bay
-    phone: '(212) 263-7300',
-    specialties: ['Emergency', 'Oncology', 'Surgery', 'Orthopedics'],
+    name: 'St. Bartholomew\'s Hospital',
+    address: 'West Smithfield, London EC1A 7BE, UK',
+    coordinates: [51.5174, -0.1006],
+    phone: '+44 20 3465 5000',
+    specialties: ['Emergency', 'Cardiology', 'Cancer Care', 'Surgery'],
     emergencyReady: true,
   },
   {
     id: 'h4',
-    name: 'Bellevue Hospital Center',
-    address: '462 1st Ave, New York, NY 10016',
-    coordinates: [40.7390, -73.9756], // Real coordinates - Kips Bay
-    phone: '(212) 562-4141',
-    specialties: ['Emergency', 'Trauma', 'Psychiatry', 'Geriatrics'],
+    name: 'Guy\'s Hospital',
+    address: 'Great Maze Pond, London SE1 9RT, UK',
+    coordinates: [51.5043, -0.0865],
+    phone: '+44 20 7188 7188',
+    specialties: ['Emergency', 'Trauma', 'Transplant', 'Neurosurgery'],
+    emergencyReady: true,
+  },
+
+  // Paris, France
+  {
+    id: 'h5',
+    name: 'Hôpital de la Pitié-Salpêtrière',
+    address: '47-83 Bd de l\'Hôpital, 75013 Paris, France',
+    coordinates: [48.8387, 2.3601],
+    phone: '+33 1 42 16 00 00',
+    specialties: ['Emergency', 'Neurology', 'Cardiology', 'Internal Medicine'],
     emergencyReady: true,
   },
   {
-    id: 'h5',
-    name: 'Hospital for Special Surgery',
-    address: '535 E 70th St, New York, NY 10021',
-    coordinates: [40.7684, -73.9533], // Real coordinates - Upper East Side
-    phone: '(212) 606-1000',
-    specialties: ['Orthopedics', 'Rheumatology', 'Emergency'],
+    id: 'h6',
+    name: 'Hôpital Saint-Louis',
+    address: '1 Ave Claude Vellefaux, 75010 Paris, France',
+    coordinates: [48.8718, 2.3661],
+    phone: '+33 1 42 49 49 49',
+    specialties: ['Emergency', 'Hematology', 'Dermatology', 'Oncology'],
     emergencyReady: false,
   },
+
+  // Tokyo, Japan
   {
-    id: 'h6',
-    name: 'Memorial Sloan Kettering Cancer Center',
-    address: '1275 York Ave, New York, NY 10065',
-    coordinates: [40.7648, -73.9540], // Real coordinates - Upper East Side
-    phone: '(212) 639-2000',
-    specialties: ['Oncology', 'Surgery', 'Emergency'],
+    id: 'h7',
+    name: 'The University of Tokyo Hospital',
+    address: '7-3-1 Hongo, Bunkyo City, Tokyo 113-8655, Japan',
+    coordinates: [35.7122, 139.7619],
+    phone: '+81 3-3815-5411',
+    specialties: ['Emergency', 'Advanced Medicine', 'Research', 'Surgery'],
+    emergencyReady: true,
+  },
+  {
+    id: 'h8',
+    name: 'St. Luke\'s International Hospital',
+    address: '9-1 Akashi-cho, Chuo City, Tokyo 104-8560, Japan',
+    coordinates: [35.6719, 139.7648],
+    phone: '+81 3-3541-5151',
+    specialties: ['Emergency', 'International Care', 'Cardiology', 'Pediatrics'],
+    emergencyReady: true,
+  },
+
+  // Sydney, Australia
+  {
+    id: 'h9',
+    name: 'Royal Prince Alfred Hospital',
+    address: 'Missenden Rd, Camperdown NSW 2050, Australia',
+    coordinates: [-33.8886, 151.1873],
+    phone: '+61 2 9515 6111',
+    specialties: ['Emergency', 'Trauma', 'Transplant', 'Burns Unit'],
+    emergencyReady: true,
+  },
+  {
+    id: 'h10',
+    name: 'St Vincent\'s Hospital Sydney',
+    address: '390 Victoria St, Darlinghurst NSW 2010, Australia',
+    coordinates: [-33.8796, 151.2169],
+    phone: '+61 2 8382 1111',
+    specialties: ['Emergency', 'Cardiology', 'HIV/AIDS', 'Mental Health'],
     emergencyReady: false,
+  },
+
+  // Toronto, Canada
+  {
+    id: 'h11',
+    name: 'Toronto General Hospital',
+    address: '200 Elizabeth St, Toronto, ON M5G 2C4, Canada',
+    coordinates: [43.6591, -79.3890],
+    phone: '+1 416-340-4800',
+    specialties: ['Emergency', 'Transplant', 'Cardiology', 'Critical Care'],
+    emergencyReady: true,
+  },
+  {
+    id: 'h12',
+    name: 'The Hospital for Sick Children',
+    address: '555 University Ave, Toronto, ON M5G 1X8, Canada',
+    coordinates: [43.6568, -79.3914],
+    phone: '+1 416-813-1500',
+    specialties: ['Emergency', 'Pediatrics', 'Surgery', 'Research'],
+    emergencyReady: true,
+  },
+
+  // Mumbai, India
+  {
+    id: 'h13',
+    name: 'Tata Memorial Hospital',
+    address: 'Dr E Borges Rd, Parel, Mumbai, Maharashtra 400012, India',
+    coordinates: [19.0144, 72.8397],
+    phone: '+91 22 2417 7000',
+    specialties: ['Emergency', 'Oncology', 'Nuclear Medicine', 'Research'],
+    emergencyReady: true,
+  },
+  {
+    id: 'h14',
+    name: 'King Edward Memorial Hospital',
+    address: 'Acharya Donde Marg, Parel, Mumbai, Maharashtra 400012, India',
+    coordinates: [19.0176, 72.8414],
+    phone: '+91 22 2410 7000',
+    specialties: ['Emergency', 'General Medicine', 'Surgery', 'Pediatrics'],
+    emergencyReady: false,
+  },
+
+  // São Paulo, Brazil
+  {
+    id: 'h15',
+    name: 'Hospital das Clínicas',
+    address: 'R. Dr. Ovídio Pires de Campos, 225 - Cerqueira César, São Paulo - SP, 05403-010, Brazil',
+    coordinates: [-23.5558, -46.6708],
+    phone: '+55 11 2661-0000',
+    specialties: ['Emergency', 'Research', 'Transplant', 'Cardiology'],
+    emergencyReady: true,
+  },
+
+  // Berlin, Germany
+  {
+    id: 'h16',
+    name: 'Charité - Universitätsmedizin Berlin',
+    address: 'Charitéplatz 1, 10117 Berlin, Germany',
+    coordinates: [52.5251, 13.3765],
+    phone: '+49 30 450 50',
+    specialties: ['Emergency', 'Research', 'Neurology', 'Cardiology'],
+    emergencyReady: true,
+  },
+
+  // Dubai, UAE
+  {
+    id: 'h17',
+    name: 'Dubai Hospital',
+    address: 'Oud Metha Rd - Dubai - United Arab Emirates',
+    coordinates: [25.2285, 55.3273],
+    phone: '+971 4-219-5000',
+    specialties: ['Emergency', 'Trauma', 'Cardiology', 'International Care'],
+    emergencyReady: true,
+  },
+
+  // Singapore
+  {
+    id: 'h18',
+    name: 'Singapore General Hospital',
+    address: 'Outram Rd, Singapore 169608',
+    coordinates: [1.2793, 103.8347],
+    phone: '+65 6222 3322',
+    specialties: ['Emergency', 'Trauma', 'Transplant', 'Advanced Medicine'],
+    emergencyReady: true,
   },
 ];
 
-// Real traffic signals at major intersections in Manhattan with actual coordinates
+// Global traffic signals from various cities with actual coordinates
 export const mockTrafficSignals: TrafficSignal[] = [
+  // New York City, USA
   {
     id: 't1',
-    coordinates: [40.7128, -74.0060], // Financial District - Near starting point
-    intersection: 'Broadway & Wall St',
+    coordinates: [40.7128, -74.0060],
+    intersection: 'Broadway & Wall St, NYC',
     status: EmergencyStatus.INACTIVE,
   },
   {
     id: 't2',
-    coordinates: [40.7282, -73.9942], // Flatiron District
-    intersection: 'Broadway & 23rd St (Flatiron)',
+    coordinates: [40.7282, -73.9942],
+    intersection: 'Broadway & 23rd St (Flatiron), NYC',
     status: EmergencyStatus.INACTIVE,
   },
   {
     id: 't3',
-    coordinates: [40.7505, -73.9934], // Times Square area
-    intersection: 'Broadway & 42nd St (Times Square)',
+    coordinates: [40.7505, -73.9934],
+    intersection: 'Broadway & 42nd St (Times Square), NYC',
     status: EmergencyStatus.INACTIVE,
   },
+
+  // London, UK
   {
     id: 't4',
-    coordinates: [40.7614, -73.9776], // Columbus Circle
-    intersection: 'Broadway & 59th St (Columbus Circle)',
+    coordinates: [51.5074, -0.1278],
+    intersection: 'Westminster Bridge & Parliament St, London',
     status: EmergencyStatus.INACTIVE,
   },
   {
     id: 't5',
-    coordinates: [40.7831, -73.9712], // Lincoln Center area
-    intersection: 'Broadway & 72nd St',
+    coordinates: [51.5155, -0.0922],
+    intersection: 'London Bridge & Borough High St, London',
     status: EmergencyStatus.INACTIVE,
   },
+
+  // Paris, France
   {
     id: 't6',
-    coordinates: [40.7359, -73.9911], // Herald Square
-    intersection: '6th Ave & 34th St (Herald Square)',
+    coordinates: [48.8566, 2.3522],
+    intersection: 'Champs-Élysées & Place de la Concorde, Paris',
     status: EmergencyStatus.INACTIVE,
   },
   {
     id: 't7',
-    coordinates: [40.7527, -73.9772], // 5th Ave & 57th St
-    intersection: '5th Ave & 57th St',
+    coordinates: [48.8738, 2.2950],
+    intersection: 'Arc de Triomphe & Avenue Foch, Paris',
     status: EmergencyStatus.INACTIVE,
   },
+
+  // Tokyo, Japan
   {
     id: 't8',
-    coordinates: [40.7484, -73.9857], // 8th Ave & 42nd St
-    intersection: '8th Ave & 42nd St (Port Authority)',
+    coordinates: [35.6762, 139.6503],
+    intersection: 'Shibuya Crossing, Tokyo',
     status: EmergencyStatus.INACTIVE,
   },
   {
     id: 't9',
-    coordinates: [40.7580, -73.9855], // 8th Ave & 57th St
-    intersection: '8th Ave & 57th St',
+    coordinates: [35.6812, 139.7671],
+    intersection: 'Tokyo Station & Marunouchi, Tokyo',
     status: EmergencyStatus.INACTIVE,
   },
+
+  // Sydney, Australia
   {
     id: 't10',
-    coordinates: [40.7420, -73.9897], // 6th Ave & 28th St
-    intersection: '6th Ave & 28th St',
+    coordinates: [-33.8688, 151.2093],
+    intersection: 'George St & Martin Place, Sydney',
     status: EmergencyStatus.INACTIVE,
   },
+
+  // Toronto, Canada
   {
     id: 't11',
-    coordinates: [40.7549, -73.9840], // 7th Ave & 50th St
-    intersection: '7th Ave & 50th St',
+    coordinates: [43.6532, -79.3832],
+    intersection: 'Yonge St & Dundas Square, Toronto',
     status: EmergencyStatus.INACTIVE,
   },
+
+  // Mumbai, India
   {
     id: 't12',
-    coordinates: [40.7648, -73.9808], // Central Park West & 72nd St
-    intersection: 'Central Park West & 72nd St',
+    coordinates: [19.0760, 72.8777],
+    intersection: 'Marine Drive & Nariman Point, Mumbai',
     status: EmergencyStatus.INACTIVE,
   },
+
+  // Berlin, Germany
   {
     id: 't13',
-    coordinates: [40.7736, -73.9566], // Lexington Ave & 77th St
-    intersection: 'Lexington Ave & 77th St',
+    coordinates: [52.5200, 13.4050],
+    intersection: 'Brandenburg Gate & Unter den Linden, Berlin',
     status: EmergencyStatus.INACTIVE,
   },
+
+  // Dubai, UAE
   {
     id: 't14',
-    coordinates: [40.7489, -73.9680], // 3rd Ave & 42nd St
-    intersection: '3rd Ave & 42nd St',
+    coordinates: [25.2048, 55.2708],
+    intersection: 'Sheikh Zayed Rd & Dubai Mall, Dubai',
     status: EmergencyStatus.INACTIVE,
   },
+
+  // Singapore
   {
     id: 't15',
-    coordinates: [40.7614, -73.9640], // Park Ave & 68th St
-    intersection: 'Park Ave & 68th St',
+    coordinates: [1.2966, 103.8520],
+    intersection: 'Orchard Rd & Scotts Rd, Singapore',
     status: EmergencyStatus.INACTIVE,
   },
 ];
@@ -155,36 +303,31 @@ export const mockTrafficSignals: TrafficSignal[] = [
 export const mockRoutes: Route[] = [
   {
     id: 'r1',
-    startLocation: [40.7128, -74.0060], // Financial District
+    startLocation: [40.7128, -74.0060], // NYC Financial District
     endLocation: [40.7677, -73.9537], // NewYork-Presbyterian Hospital
     waypoints: [
-      [40.7128, -74.0060], // Start - Financial District
-      [40.7282, -73.9942], // Broadway & 23rd St
-      [40.7359, -73.9911], // Herald Square
-      [40.7505, -73.9934], // Times Square
-      [40.7549, -73.9840], // 7th Ave & 50th St
-      [40.7614, -73.9640], // Park Ave & 68th St
-      [40.7677, -73.9537], // Hospital
+      [40.7128, -74.0060],
+      [40.7282, -73.9942],
+      [40.7359, -73.9911],
+      [40.7505, -73.9934],
+      [40.7677, -73.9537],
     ],
     distance: 8.5,
     duration: 15,
-    trafficSignalsOnRoute: ['t1', 't2', 't6', 't3', 't11', 't15'],
+    trafficSignalsOnRoute: ['t1', 't2', 't3'],
   },
   {
     id: 'r2',
-    startLocation: [40.7128, -74.0060], // Financial District
-    endLocation: [40.7903, -73.9509], // Mount Sinai Hospital
+    startLocation: [51.5074, -0.1278], // London Westminster
+    endLocation: [51.5174, -0.1006], // St. Bartholomew's Hospital
     waypoints: [
-      [40.7128, -74.0060], // Start
-      [40.7282, -73.9942], // Broadway & 23rd St
-      [40.7505, -73.9934], // Times Square
-      [40.7614, -73.9776], // Columbus Circle
-      [40.7831, -73.9712], // Broadway & 72nd St
-      [40.7903, -73.9509], // Hospital
+      [51.5074, -0.1278],
+      [51.5155, -0.0922],
+      [51.5174, -0.1006],
     ],
-    distance: 9.2,
-    duration: 18,
-    trafficSignalsOnRoute: ['t1', 't2', 't3', 't4', 't5'],
+    distance: 4.2,
+    duration: 12,
+    trafficSignalsOnRoute: ['t4', 't5'],
   },
 ];
 
@@ -243,8 +386,8 @@ const generateOptimalWaypoints = (
     const distToEnd = calculateDistance(end, signal.coordinates);
     const directDistance = calculateDistance(start, end);
     
-    // Include signals that are roughly on the path (more lenient for real NYC routes)
-    return distToStart + distToEnd < directDistance * 1.5;
+    // Include signals that are roughly on the path (more lenient for global routes)
+    return distToStart + distToEnd < directDistance * 1.8;
   });
   
   // Sort signals by distance from start
@@ -289,19 +432,19 @@ export const calculateDistance = (
   return R * c;
 };
 
-// Enhanced duration calculation for emergency vehicles in NYC traffic (SLOWER SPEED)
+// Enhanced duration calculation for emergency vehicles in global cities (SLOWER SPEED)
 export const calculateDuration = (
   point1: [number, number],
   point2: [number, number]
 ): number => {
-  // SLOWER: Emergency vehicles in NYC now average 30-35 km/h with traffic priority
+  // SLOWER: Emergency vehicles globally now average 30-35 km/h with traffic priority
   const distance = calculateDistance(point1, point2);
   const baseSpeed = 35; // km/h (reduced from 50)
   
-  // Add time penalties for traffic density in Manhattan
-  const manhattanPenalty = 1.4; // 40% slower due to dense traffic (increased from 1.2)
+  // Add time penalties for traffic density in major cities
+  const cityTrafficPenalty = 1.4; // 40% slower due to dense traffic (increased from 1.2)
   
-  return (distance / baseSpeed) * 60 * manhattanPenalty; // Convert to minutes
+  return (distance / baseSpeed) * 60 * cityTrafficPenalty; // Convert to minutes
 };
 
 // Find traffic signals along the route path with better tolerance for real streets
@@ -321,8 +464,8 @@ export const findTrafficSignalsOnPath = (waypoints: [number, number][]): string[
         segmentEnd
       );
       
-      // If signal is within 0.8km of the route, include it (increased tolerance for real streets)
-      if (distanceToSegment < 0.8) {
+      // If signal is within 1.5km of the route, include it (increased tolerance for global routes)
+      if (distanceToSegment < 1.5) {
         signalsOnRoute.push(signal.id);
         break;
       }
@@ -387,16 +530,19 @@ export const getNearbyPOIs = (
   radius: number = 2 // km
 ): { type: string; name: string; coordinates: [number, number] }[] => {
   const pois = [
-    // Fire stations
-    { type: 'fire_station', name: 'FDNY Engine 7/Ladder 1', coordinates: [40.7505, -73.9934] as [number, number] },
-    { type: 'fire_station', name: 'FDNY Engine 54/Ladder 4', coordinates: [40.7614, -73.9776] as [number, number] },
+    // Global emergency services
+    { type: 'fire_station', name: 'Fire Station Central', coordinates: [40.7505, -73.9934] as [number, number] },
+    { type: 'fire_station', name: 'London Fire Brigade', coordinates: [51.5074, -0.1278] as [number, number] },
+    { type: 'fire_station', name: 'Tokyo Fire Department', coordinates: [35.6762, 139.6503] as [number, number] },
     
     // Police stations
-    { type: 'police_station', name: 'NYPD Midtown South Precinct', coordinates: [40.7505, -73.9857] as [number, number] },
-    { type: 'police_station', name: 'NYPD Central Park Precinct', coordinates: [40.7831, -73.9712] as [number, number] },
+    { type: 'police_station', name: 'Metropolitan Police', coordinates: [51.5155, -0.0922] as [number, number] },
+    { type: 'police_station', name: 'Tokyo Metropolitan Police', coordinates: [35.6812, 139.7671] as [number, number] },
+    { type: 'police_station', name: 'NYPD Precinct', coordinates: [40.7282, -73.9942] as [number, number] },
     
     // Emergency services
-    { type: 'emergency_service', name: 'NYC Emergency Management', coordinates: [40.7128, -74.0060] as [number, number] },
+    { type: 'emergency_service', name: 'Emergency Management Center', coordinates: [40.7128, -74.0060] as [number, number] },
+    { type: 'emergency_service', name: 'Emergency Response Unit', coordinates: [48.8566, 2.3522] as [number, number] },
   ];
   
   return pois.filter(poi => calculateDistance(center, poi.coordinates) <= radius);

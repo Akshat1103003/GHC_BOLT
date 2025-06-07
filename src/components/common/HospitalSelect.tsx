@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, MapPin, Phone, CheckCircle, XCircle, Navigation, Clock } from 'lucide-react';
+import { Search, MapPin, Phone, CheckCircle, XCircle, Navigation, Clock, Globe } from 'lucide-react';
 import { Hospital } from '../../types';
 import { calculateDistance, calculateDuration } from '../../utils/mockData';
 import { useAppContext } from '../../contexts/AppContext';
@@ -37,34 +37,50 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     return distanceA - distanceB;
   });
 
-  // Get hospital area/neighborhood
-  const getHospitalArea = (coordinates: [number, number]) => {
-    const [lat] = coordinates;
-    if (lat > 40.78) return 'Upper East Side';
-    if (lat > 40.75) return 'Midtown East';
-    if (lat > 40.73) return 'Kips Bay';
-    return 'Lower Manhattan';
+  // Get hospital city/country from address
+  const getHospitalLocation = (address: string) => {
+    const parts = address.split(', ');
+    if (parts.length >= 2) {
+      return parts.slice(-2).join(', '); // Get last two parts (city, country)
+    }
+    return address;
+  };
+
+  // Get country flag emoji
+  const getCountryFlag = (address: string) => {
+    if (address.includes('USA')) return '🇺🇸';
+    if (address.includes('UK')) return '🇬🇧';
+    if (address.includes('France')) return '🇫🇷';
+    if (address.includes('Japan')) return '🇯🇵';
+    if (address.includes('Australia')) return '🇦🇺';
+    if (address.includes('Canada')) return '🇨🇦';
+    if (address.includes('India')) return '🇮🇳';
+    if (address.includes('Brazil')) return '🇧🇷';
+    if (address.includes('Germany')) return '🇩🇪';
+    if (address.includes('United Arab Emirates')) return '🇦🇪';
+    if (address.includes('Singapore')) return '🇸🇬';
+    return '🌍';
   };
 
   return (
     <div className={`bg-white rounded-lg shadow-md flex flex-col ${className}`}>
       <div className="p-4 border-b flex-shrink-0">
         <h2 className="text-xl font-semibold text-gray-800 mb-2 flex items-center">
-          <Navigation className="mr-2" size={20} />
-          Select NYC Hospital
+          <Globe className="mr-2" size={20} />
+          Select Global Hospital
         </h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
-            placeholder="Search by name, address, or specialty..."
+            placeholder="Search by name, city, country, or specialty..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          Showing real NYC hospitals with actual coordinates
+          Showing hospitals from major cities worldwide with actual coordinates
         </p>
       </div>
 
@@ -77,7 +93,8 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
               const distance = calculateDistance(currentLocation, hospital.coordinates);
               const duration = calculateDuration(currentLocation, hospital.coordinates);
               const isSelected = selectedHospital?.id === hospital.id;
-              const area = getHospitalArea(hospital.coordinates);
+              const location = getHospitalLocation(hospital.address);
+              const flag = getCountryFlag(hospital.address);
 
               return (
                 <li
@@ -92,7 +109,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-gray-900 flex items-center">
                         {hospital.name}
-                        {isSelected && <CheckCircle className="ml-2 text-blue-500 flex-shrink-0\" size={16} />}
+                        {isSelected && <CheckCircle className="ml-2 text-blue-500 flex-shrink-0" size={16} />}
                       </h3>
                       
                       <div className="mt-1 flex items-center text-sm text-gray-500">
@@ -105,9 +122,10 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                         <span>{hospital.phone}</span>
                       </div>
                       
-                      {/* Area/Neighborhood */}
-                      <div className="mt-1 text-xs text-blue-600 font-medium">
-                        📍 {area}
+                      {/* Location with flag */}
+                      <div className="mt-1 text-xs text-blue-600 font-medium flex items-center">
+                        <span className="mr-1">{flag}</span>
+                        <span>{location}</span>
                       </div>
                       
                       <div className="mt-2 flex flex-wrap gap-1">
@@ -145,9 +163,9 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                         )}
                       </div>
                       
-                      {/* Real coordinates indicator */}
+                      {/* Global location indicator */}
                       <div className="mt-1 text-xs text-gray-400">
-                        Real NYC Location
+                        Global Location
                       </div>
                     </div>
                   </div>
@@ -159,7 +177,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                         🚨 Emergency Route Active
                       </p>
                       <p className="text-xs text-blue-600 mt-1">
-                        Route optimized for NYC traffic patterns • Real-time signal coordination
+                        Route optimized for global traffic patterns • Real-time signal coordination
                       </p>
                     </div>
                   )}
@@ -170,10 +188,10 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         )}
       </div>
       
-      {/* Footer with real data info */}
+      {/* Footer with global data info */}
       <div className="p-3 bg-gray-50 border-t flex-shrink-0">
         <p className="text-xs text-gray-600 text-center">
-          🏥 {hospitals.length} Real NYC Hospitals • 📍 Actual GPS Coordinates • 🚨 Live Emergency Status
+          🌍 {hospitals.length} Global Hospitals • 📍 Actual GPS Coordinates • 🚨 Live Emergency Status
         </p>
       </div>
     </div>
