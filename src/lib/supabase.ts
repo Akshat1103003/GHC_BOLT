@@ -10,20 +10,29 @@ if (dataSource !== 'mock' && (!supabaseUrl || !supabaseAnonKey)) {
 }
 
 // Create a mock client when using mock data source
-const createMockClient = () => ({
-  from: () => ({
-    select: () => Promise.resolve({ data: [], error: null }),
-    insert: () => Promise.resolve({ data: null, error: null }),
-    update: () => Promise.resolve({ data: null, error: null }),
-    delete: () => Promise.resolve({ data: null, error: null }),
-  }),
-  auth: {
-    signUp: () => Promise.resolve({ data: null, error: null }),
-    signIn: () => Promise.resolve({ data: null, error: null }),
-    signOut: () => Promise.resolve({ error: null }),
-    getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-  },
-})
+const createMockClient = () => {
+  const createChainableQuery = () => ({
+    eq: () => createChainableQuery(),
+    select: () => createChainableQuery(),
+    single: () => Promise.resolve({ data: null, error: null }),
+    then: (resolve: any) => resolve({ data: null, error: null })
+  });
+
+  return {
+    from: () => ({
+      select: () => createChainableQuery(),
+      insert: () => createChainableQuery(),
+      update: () => createChainableQuery(),
+      delete: () => createChainableQuery(),
+    }),
+    auth: {
+      signUp: () => Promise.resolve({ data: null, error: null }),
+      signIn: () => Promise.resolve({ data: null, error: null }),
+      signOut: () => Promise.resolve({ error: null }),
+      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+    },
+  }
+}
 
 export const supabase = dataSource === 'mock' 
   ? createMockClient() as any
