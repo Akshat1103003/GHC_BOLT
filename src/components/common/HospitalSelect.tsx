@@ -92,7 +92,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                     <div className="flex-1">
                       <h3 className="font-medium text-gray-900 flex items-center">
                         {hospital.name}
-                        {isSelected && <CheckCircle className="ml-2 text-blue-500" size={16} />}
+                        {isSelected && <CheckCircle className="ml-2 text-blue-500\" size={16} />}
                       </h3>
                       
                       <div className="mt-1 flex items-center text-sm text-gray-500">
