@@ -2,16 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Ambulance, Clock, CheckCircle, Users, AlarmClock } from 'lucide-react';
 import NotificationPanel from '../components/notifications/NotificationPanel';
 import StatusCard from '../components/dashboard/StatusCard';
-import { getNotifications, markNotificationAsRead } from '../services/notificationService';
-import { Notification } from '../types';
-import { mockHospitals } from '../utils/mockData';
+import { useAppContext } from '../contexts/AppContext';
 
 const HospitalDashboard: React.FC = () => {
+  const { hospitals, notifications, markNotificationAsRead, isLoading } = useAppContext();
+  
   // In a real app, this would be determined by authentication
   const hospitalId = 'h1'; 
-  const hospital = mockHospitals.find(h => h.id === hospitalId);
+  const hospital = hospitals.find(h => h.id === hospitalId);
   
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [preparationStatus, setPreparationStatus] = useState({
     status: 'info',
     message: 'No incoming ambulances',
@@ -42,19 +41,8 @@ const HospitalDashboard: React.FC = () => {
     { name: 'CT Scanner', status: 'available' },
   ]);
 
-  // Fetch notifications on load
-  useEffect(() => {
-    // In a real app, this would poll for new notifications
-    const fetchNotifications = () => {
-      const hospitalNotifications = getNotifications(hospitalId, 'hospital');
-      setNotifications(hospitalNotifications);
-    };
-    
-    fetchNotifications();
-    const timer = setInterval(fetchNotifications, 10000);
-    
-    return () => clearInterval(timer);
-  }, [hospitalId]);
+  // Filter notifications for this hospital
+  const hospitalNotifications = notifications.filter(n => n.targetId === hospitalId);
 
   // Update preparation status based on incoming ambulances
   useEffect(() => {
@@ -86,16 +74,6 @@ const HospitalDashboard: React.FC = () => {
     }
   }, [incomingAmbulances]);
 
-  // Mark notification as read
-  const handleMarkNotificationAsRead = async (id: string) => {
-    await markNotificationAsRead(id);
-    setNotifications(
-      notifications.map((notification) =>
-        notification.id === id ? { ...notification, read: true } : notification
-      )
-    );
-  };
-
   // Update staff availability
   const toggleStaffStatus = (index: number) => {
     setStaffStatus(
@@ -121,6 +99,16 @@ const HospitalDashboard: React.FC = () => {
       })
     );
   };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -303,8 +291,8 @@ const HospitalDashboard: React.FC = () => {
 
           {/* Notifications */}
           <NotificationPanel
-            notifications={notifications}
-            onMarkAsRead={handleMarkNotificationAsRead}
+            notifications={hospitalNotifications}
+            onMarkAsRead={markNotificationAsRead}
           />
         </div>
       </div>

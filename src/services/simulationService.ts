@@ -1,5 +1,6 @@
 import { Route, TrafficSignal, EmergencyStatus } from '../types';
 import { notifyTrafficSignal, notifyHospital } from './notificationService';
+import { updateAmbulanceLocation, updateTrafficSignalStatus } from './supabaseService';
 
 // Calculate distance between two points (Haversine formula)
 const calculateDistance = (point1: [number, number], point2: [number, number]): number => {
@@ -46,16 +47,17 @@ export const simulateAmbulanceMovement = (
   onLocationUpdate(waypoints[0]);
   
   // Process waypoints one by one with realistic timing
-  const processNextWaypoint = () => {
+  const processNextWaypoint = async () => {
     if (!isRunning) return;
     
     currentWaypointIndex++;
     
     if (currentWaypointIndex >= waypoints.length) {
       // Route completed - reset all traffic signals
-      trafficSignals.forEach(signal => {
+      for (const signal of trafficSignals) {
+        await updateTrafficSignalStatus(signal.id, EmergencyStatus.PASSED);
         onTrafficSignalUpdate(signal.id, EmergencyStatus.PASSED);
-      });
+      }
       onComplete();
       return;
     }
@@ -63,8 +65,15 @@ export const simulateAmbulanceMovement = (
     const currentPosition = waypoints[currentWaypointIndex];
     onLocationUpdate(currentPosition);
     
+    // Update ambulance location in database
+    try {
+      await updateAmbulanceLocation('a1', currentPosition[0], currentPosition[1], 'en_route');
+    } catch (error) {
+      console.error('Error updating ambulance location in database:', error);
+    }
+    
     // Enhanced traffic signal detection and status updates
-    trafficSignals.forEach(signal => {
+    for (const signal of trafficSignals) {
       const distance = calculateDistance(currentPosition, signal.coordinates);
       const signalState = signalStates.get(signal.id)!;
       
@@ -92,19 +101,26 @@ export const simulateAmbulanceMovement = (
         signalState.status = newStatus;
         onTrafficSignalUpdate(signal.id, newStatus);
         
+        // Update in database
+        try {
+          await updateTrafficSignalStatus(signal.id, newStatus);
+        } catch (error) {
+          console.error('Error updating traffic signal in database:', error);
+        }
+        
         // Notify traffic signal system
         if (newStatus === EmergencyStatus.APPROACHING) {
-          notifyTrafficSignal(signal, newStatus, Math.floor(distance * 60)); // ETA in seconds
+          await notifyTrafficSignal(signal, newStatus, Math.floor(distance * 60)); // ETA in seconds
         } else if (newStatus === EmergencyStatus.ACTIVE) {
-          notifyTrafficSignal(signal, newStatus, 0);
+          await notifyTrafficSignal(signal, newStatus, 0);
         } else if (newStatus === EmergencyStatus.PASSED) {
-          notifyTrafficSignal(signal, newStatus, 0);
+          await notifyTrafficSignal(signal, newStatus, 0);
         }
       }
       
       // Update last known distance
       signalState.lastDistance = distance;
-    });
+    }
     
     // Calculate time to next waypoint (based on distance and emergency speed)
     const nextWaypoint = waypoints[currentWaypointIndex + 1];
@@ -116,6 +132,11 @@ export const simulateAmbulanceMovement = (
       setTimeout(processNextWaypoint, timeToNextWaypoint);
     } else {
       // Final waypoint reached
+      try {
+        await updateAmbulanceLocation('a1', currentPosition[0], currentPosition[1], 'at_hospital');
+      } catch (error) {
+        console.error('Error updating ambulance status to at_hospital:', error);
+      }
       onComplete();
     }
   };
@@ -133,7 +154,7 @@ export const simulateAmbulanceMovement = (
 };
 
 // Simulates the hospital preparing for the ambulance arrival
-export const simulateHospitalPreparation = (
+export const simulateHospitalPreparation = async (
   hospitalId: string,
   patientCondition: string,
   eta: number, // in minutes
@@ -152,10 +173,14 @@ export const simulateHospitalPreparation = (
   ];
   
   // Notify hospital initially
-  notifyHospital(
-    { id: hospitalId } as any,
-    { condition: patientCondition, eta }
-  );
+  try {
+    await notifyHospital(
+      { id: hospitalId } as any,
+      { condition: patientCondition, eta }
+    );
+  } catch (error) {
+    console.error('Error notifying hospital:', error);
+  }
   
   // Update status at intervals
   const stepInterval = (eta * 60 * 1000) / totalSteps; // Divide ETA into equal steps

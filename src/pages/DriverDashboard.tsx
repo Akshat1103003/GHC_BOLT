@@ -7,11 +7,8 @@ import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import NotificationPanel from '../components/notifications/NotificationPanel';
 import { useAppContext } from '../contexts/AppContext';
-import { mockHospitals } from '../utils/mockData';
 import { calculateRoute } from '../utils/mockData';
 import { simulateAmbulanceMovement } from '../services/simulationService';
-import { markNotificationAsRead, getNotifications } from '../services/notificationService';
-import { Notification } from '../types';
 
 const DriverDashboard: React.FC = () => {
   const {
@@ -23,6 +20,10 @@ const DriverDashboard: React.FC = () => {
     trafficSignals,
     updateTrafficSignal,
     setCurrentRoute,
+    hospitals,
+    notifications,
+    markNotificationAsRead,
+    isLoading,
   } = useAppContext();
 
   const [patientInfo, setPatientInfo] = useState({
@@ -31,31 +32,12 @@ const DriverDashboard: React.FC = () => {
     gender: 'Male',
   });
 
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [simulation, setSimulation] = useState<any>(null);
   const [routeStatus, setRouteStatus] = useState({
     status: 'inactive',
     message: 'No active route',
     details: 'Select a hospital to create a route',
   });
-
-  // Fetch notifications on load and when emergency status changes
-  useEffect(() => {
-    if (emergencyActive) {
-      // In a real app, this would poll for new notifications
-      const timer = setInterval(() => {
-        // Simulating fetching notifications for all traffic signals on route
-        const newNotifications: Notification[] = [];
-        trafficSignals.forEach(signal => {
-          const signalNotifications = getNotifications(signal.id, 'trafficSignal');
-          newNotifications.push(...signalNotifications);
-        });
-        setNotifications(prev => [...prev, ...newNotifications]);
-      }, 10000);
-      
-      return () => clearInterval(timer);
-    }
-  }, [emergencyActive, trafficSignals]);
 
   // Handle hospital selection
   const handleHospitalSelect = (hospital: any) => {
@@ -109,15 +91,15 @@ const DriverDashboard: React.FC = () => {
     });
   };
 
-  // Mark notification as read
-  const handleMarkNotificationAsRead = async (id: string) => {
-    await markNotificationAsRead(id);
-    setNotifications(
-      notifications.map((notification) =>
-        notification.id === id ? { ...notification, read: true } : notification
-      )
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-red-600"></div>
+        </div>
+      </div>
     );
-  };
+  }
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -190,7 +172,7 @@ const DriverDashboard: React.FC = () => {
 
           {/* Hospital selection */}
           <HospitalSelect
-            hospitals={mockHospitals}
+            hospitals={hospitals}
             currentLocation={ambulanceLocation}
             onSelect={handleHospitalSelect}
           />
@@ -224,7 +206,7 @@ const DriverDashboard: React.FC = () => {
           {/* Notifications */}
           <NotificationPanel
             notifications={notifications}
-            onMarkAsRead={handleMarkNotificationAsRead}
+            onMarkAsRead={markNotificationAsRead}
           />
         </div>
       </div>

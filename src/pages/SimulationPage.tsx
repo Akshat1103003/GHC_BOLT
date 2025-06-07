@@ -6,7 +6,7 @@ import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import TrafficSignal from '../components/traffic/TrafficSignal';
 import { useAppContext } from '../contexts/AppContext';
-import { mockHospitals, calculateRoute } from '../utils/mockData';
+import { calculateRoute } from '../utils/mockData';
 import { simulateAmbulanceMovement, simulateHospitalPreparation } from '../services/simulationService';
 import { EmergencyStatus } from '../types';
 
@@ -21,6 +21,8 @@ const SimulationPage: React.FC = () => {
     toggleEmergency,
     emergencyActive,
     setCurrentRoute,
+    hospitals,
+    isLoading,
   } = useAppContext();
 
   const [isSimulationRunning, setIsSimulationRunning] = useState(false);
@@ -192,6 +194,16 @@ const SimulationPage: React.FC = () => {
     setCurrentRoute(null);
   };
 
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
@@ -239,7 +251,7 @@ const SimulationPage: React.FC = () => {
                 >
                   {isSimulationRunning ? (
                     <>
-                      <Pause className="mr-2\" size={18} />
+                      <Pause className="mr-2" size={18} />
                       Pause
                     </>
                   ) : (
@@ -300,7 +312,7 @@ const SimulationPage: React.FC = () => {
 
           {/* Hospital selection */}
           <HospitalSelect
-            hospitals={mockHospitals}
+            hospitals={hospitals}
             currentLocation={ambulanceLocation}
             onSelect={handleHospitalSelect}
           />
@@ -355,7 +367,7 @@ const SimulationPage: React.FC = () => {
               
               <div className="mt-4 p-4 bg-blue-50 rounded-md">
                 <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> In a real implementation, this system would communicate with actual traffic infrastructure and hospital systems using IoT devices and secure APIs.
+                  <strong>Note:</strong> This system now uses real-time data from Supabase. All changes are synchronized across all connected clients in real-time.
                 </p>
               </div>
             </div>
