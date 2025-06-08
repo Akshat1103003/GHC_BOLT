@@ -241,7 +241,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {isGeocoding && (
-            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-500 animate-spin" size={18} />
+            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-500 animate-spin\" size={18} />
           )}
           
           {/* Search suggestions dropdown */}
@@ -324,7 +324,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-gray-900 flex items-center">
                         {hospital.name}
-                        {isSelected && <CheckCircle className="ml-2 text-blue-500 flex-shrink-0" size={16} />}
+                        {isSelected && <CheckCircle className="ml-2 text-blue-500 flex-shrink-0\" size={16} />}
                       </h3>
                       
                       <div className="mt-1 flex items-center text-sm text-gray-500">
