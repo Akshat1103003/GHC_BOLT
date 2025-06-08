@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Search, MapPin, Phone, CheckCircle, XCircle, Navigation, Clock, Globe } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, MapPin, Phone, CheckCircle, XCircle, Navigation, Clock, Globe, Loader2 } from 'lucide-react';
+import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Hospital } from '../../types';
 import { calculateDistance, calculateDuration } from '../../utils/mockData';
 import { useAppContext } from '../../contexts/AppContext';
@@ -8,6 +9,7 @@ interface HospitalSelectProps {
   hospitals: Hospital[];
   currentLocation: [number, number];
   onSelect: (hospital: Hospital) => void;
+  onSearchLocationChange?: (location: [number, number] | null) => void;
   className?: string;
 }
 
@@ -15,25 +17,102 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   hospitals,
   currentLocation,
   onSelect,
+  onSearchLocationChange,
   className = '',
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [geocodedSearchLocation, setGeocodedSearchLocation] = useState<[number, number] | null>(null);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [geocodingError, setGeocodingError] = useState<string | null>(null);
   const { selectedHospital } = useAppContext();
 
-  // Filter hospitals based on search term
-  const filteredHospitals = hospitals.filter(
-    (hospital) =>
-      hospital.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  // Initialize Google Maps Geocoding service
+  const geocodingLibrary = useMapsLibrary('geocoding');
+  const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
+
+  useEffect(() => {
+    if (geocodingLibrary) {
+      setGeocoder(new geocodingLibrary.Geocoder());
+    }
+  }, [geocodingLibrary]);
+
+  // Geocode search term when it changes
+  useEffect(() => {
+    if (!geocoder || !searchTerm.trim()) {
+      setGeocodedSearchLocation(null);
+      setGeocodingError(null);
+      if (onSearchLocationChange) {
+        onSearchLocationChange(null);
+      }
+      return;
+    }
+
+    // Debounce geocoding requests
+    const timeoutId = setTimeout(() => {
+      performGeocoding(searchTerm.trim());
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, geocoder]);
+
+  const performGeocoding = async (query: string) => {
+    if (!geocoder) return;
+
+    setIsGeocoding(true);
+    setGeocodingError(null);
+
+    try {
+      const response = await geocoder.geocode({ address: query });
+      
+      if (response.results && response.results.length > 0) {
+        const location = response.results[0].geometry.location;
+        const coordinates: [number, number] = [location.lat(), location.lng()];
+        setGeocodedSearchLocation(coordinates);
+        if (onSearchLocationChange) {
+          onSearchLocationChange(coordinates);
+        }
+      } else {
+        setGeocodingError('Location not found');
+        setGeocodedSearchLocation(null);
+        if (onSearchLocationChange) {
+          onSearchLocationChange(null);
+        }
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      setGeocodingError('Failed to search location');
+      setGeocodedSearchLocation(null);
+      if (onSearchLocationChange) {
+        onSearchLocationChange(null);
+      }
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
+  // Filter hospitals based on search term and proximity to geocoded location
+  const filteredHospitals = hospitals.filter((hospital) => {
+    // Text-based filtering
+    const matchesText = hospital.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       hospital.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
       hospital.specialties.some((specialty) =>
         specialty.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-  );
+      );
 
-  // Sort hospitals by distance
+    // If we have a geocoded location, also filter by proximity (within 100km)
+    if (geocodedSearchLocation && searchTerm.trim()) {
+      const distanceToSearch = calculateDistance(geocodedSearchLocation, hospital.coordinates);
+      return matchesText || distanceToSearch <= 100; // 100km radius
+    }
+
+    return matchesText;
+  });
+
+  // Sort hospitals by distance (from search location if available, otherwise from current location)
+  const referenceLocation = geocodedSearchLocation || currentLocation;
   const sortedHospitals = [...filteredHospitals].sort((a, b) => {
-    const distanceA = calculateDistance(currentLocation, a.coordinates);
-    const distanceB = calculateDistance(currentLocation, b.coordinates);
+    const distanceA = calculateDistance(referenceLocation, a.coordinates);
+    const distanceB = calculateDistance(referenceLocation, b.coordinates);
     return distanceA - distanceB;
   });
 
@@ -73,25 +152,53 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
-            placeholder="Search by name, city, country, or specialty..."
+            placeholder="Search by location, hospital name, or specialty..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+          {isGeocoding && (
+            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-500 animate-spin" size={18} />
+          )}
         </div>
+        
+        {/* Search status indicators */}
+        {geocodedSearchLocation && (
+          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+            <div className="flex items-center text-sm text-green-800">
+              <MapPin size={14} className="mr-1" />
+              <span>Searching near: {geocodedSearchLocation[0].toFixed(4)}, {geocodedSearchLocation[1].toFixed(4)}</span>
+            </div>
+          </div>
+        )}
+        
+        {geocodingError && (
+          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+            <div className="flex items-center text-sm text-red-800">
+              <XCircle size={14} className="mr-1" />
+              <span>{geocodingError}</span>
+            </div>
+          </div>
+        )}
+        
         <p className="text-xs text-gray-500 mt-2">
-          Showing hospitals from major cities worldwide with actual coordinates
+          {geocodedSearchLocation 
+            ? `Showing hospitals near searched location (${sortedHospitals.length} found)`
+            : `Search by city, address, hospital name, or specialty (${sortedHospitals.length} hospitals)`
+          }
         </p>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         {sortedHospitals.length === 0 ? (
-          <div className="p-4 text-center text-gray-500">No hospitals found matching your search.</div>
+          <div className="p-4 text-center text-gray-500">
+            {searchTerm ? 'No hospitals found matching your search.' : 'Start typing to search for hospitals.'}
+          </div>
         ) : (
           <ul className="divide-y divide-gray-200">
             {sortedHospitals.map((hospital) => {
-              const distance = calculateDistance(currentLocation, hospital.coordinates);
-              const duration = calculateDuration(currentLocation, hospital.coordinates);
+              const distance = calculateDistance(referenceLocation, hospital.coordinates);
+              const duration = calculateDuration(referenceLocation, hospital.coordinates);
               const isSelected = selectedHospital?.id === hospital.id;
               const location = getHospitalLocation(hospital.address);
               const flag = getCountryFlag(hospital.address);
@@ -109,7 +216,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-gray-900 flex items-center">
                         {hospital.name}
-                        {isSelected && <CheckCircle className="ml-2 text-blue-500 flex-shrink-0\" size={16} />}
+                        {isSelected && <CheckCircle className="ml-2 text-blue-500 flex-shrink-0" size={16} />}
                       </h3>
                       
                       <div className="mt-1 flex items-center text-sm text-gray-500">
@@ -163,9 +270,9 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                         )}
                       </div>
                       
-                      {/* Global location indicator */}
+                      {/* Distance indicator */}
                       <div className="mt-1 text-xs text-gray-400">
-                        Global Location
+                        {geocodedSearchLocation ? 'From search' : 'From current'}
                       </div>
                     </div>
                   </div>
@@ -188,10 +295,15 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         )}
       </div>
       
-      {/* Footer with global data info */}
+      {/* Footer with search info */}
       <div className="p-3 bg-gray-50 border-t flex-shrink-0">
         <p className="text-xs text-gray-600 text-center">
-          🌍 {hospitals.length} Global Hospitals • 📍 Actual GPS Coordinates • 🚨 Live Emergency Status
+          🌍 {hospitals.length} Global Hospitals • 📍 Google Maps Search • 🚨 Live Emergency Status
+          {geocodedSearchLocation && (
+            <span className="block mt-1 text-blue-600">
+              📍 Searching within 100km radius of your location
+            </span>
+          )}
         </p>
       </div>
     </div>

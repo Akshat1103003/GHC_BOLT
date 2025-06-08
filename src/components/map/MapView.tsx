@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
-import { Ambulance, Building2, MapPin, AlertTriangle, Navigation, Globe } from 'lucide-react';
+import { Ambulance, Building2, MapPin, AlertTriangle, Navigation, Globe, Search } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { EmergencyStatus } from '../../types';
 
 interface MapViewProps {
+  searchLocation?: [number, number] | null;
   className?: string;
 }
 
-const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
+const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => {
   const { 
     ambulanceLocation, 
     selectedHospital, 
@@ -187,6 +188,15 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
         <rect x="17" y="30" width="2" height="6" fill="${fillColor}"/>
         ${isAlerting ? '<circle cx="18" cy="18" r="18" fill="none" stroke="#F59E0B" stroke-width="2" opacity="0.6"><animate attributeName="r" values="16;20;16" dur="1s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.6;0.2;0.6" dur="1s" repeatCount="indefinite"/></circle>' : ''}
       `;
+    } else if (type === 'search') {
+      size = 40;
+      fillColor = '#10B981';
+      svgContent = `
+        <circle cx="20" cy="20" r="18" fill="white" stroke="${fillColor}" stroke-width="3"/>
+        <circle cx="20" cy="20" r="12" fill="${fillColor}"/>
+        <circle cx="16" cy="16" r="6" fill="none" stroke="white" stroke-width="2"/>
+        <path d="20 20 26 26" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      `;
     }
 
     const svgString = `
@@ -208,21 +218,28 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
     setMapInstance(map);
   }, []);
 
-  // Update map view when emergency is active
+  // Update map view when emergency is active or search location changes
   useEffect(() => {
-    if (mapInstance && emergencyActive) {
-      // For global view, use a wider zoom level
-      const zoomLevel = selectedHospital ? 
-        (calculateDistance(ambulanceLocation, selectedHospital.coordinates) > 100 ? 6 : 10) : 
-        10;
-      
-      mapInstance.setCenter({ lat: ambulanceLocation[0], lng: ambulanceLocation[1] });
-      mapInstance.setZoom(Math.max(mapInstance.getZoom() || 10, zoomLevel));
+    if (mapInstance) {
+      if (searchLocation) {
+        // Center on search location
+        mapInstance.setCenter({ lat: searchLocation[0], lng: searchLocation[1] });
+        mapInstance.setZoom(10);
+      } else if (emergencyActive) {
+        // For global view, use a wider zoom level
+        const zoomLevel = selectedHospital ? 
+          (calculateDistance(ambulanceLocation, selectedHospital.coordinates) > 100 ? 6 : 10) : 
+          10;
+        
+        mapInstance.setCenter({ lat: ambulanceLocation[0], lng: ambulanceLocation[1] });
+        mapInstance.setZoom(Math.max(mapInstance.getZoom() || 10, zoomLevel));
+      }
     }
-  }, [ambulanceLocation, mapInstance, emergencyActive, selectedHospital]);
+  }, [ambulanceLocation, mapInstance, emergencyActive, selectedHospital, searchLocation]);
 
-  // Calculate initial zoom based on distance to selected hospital
+  // Calculate initial zoom based on distance to selected hospital or search location
   const getInitialZoom = () => {
+    if (searchLocation) return 10;
     if (selectedHospital) {
       const distance = calculateDistance(ambulanceLocation, selectedHospital.coordinates);
       return distance > 100 ? 6 : 10;
@@ -271,6 +288,9 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
         <div className="flex items-center space-x-2 text-sm text-gray-600">
           <Globe size={16} />
           <span>Global Emergency Response System</span>
+          {searchLocation && (
+            <span className="text-green-600 font-medium">• Search Location Active</span>
+          )}
         </div>
         <div className="flex items-center space-x-4 text-xs">
           <div className="flex items-center">
@@ -291,6 +311,14 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
             </div>
             <span>Traffic Signals</span>
           </div>
+          {searchLocation && (
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-green-500 rounded-full mr-1 flex items-center justify-center">
+                <Search size={8} className="text-white" />
+              </div>
+              <span>Search Location</span>
+            </div>
+          )}
         </div>
       </div>
       
@@ -302,6 +330,41 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
         disableDefaultUI={false}
         onLoad={handleMapLoad}
       >
+        {/* Search location marker */}
+        {searchLocation && (
+          <>
+            <Marker
+              position={{ lat: searchLocation[0], lng: searchLocation[1] }}
+              icon={createSVGMarkerIcon('search')}
+              onClick={() => setSelectedMarker('search')}
+              zIndex={950} // High priority for search location
+            />
+            
+            {selectedMarker === 'search' && (
+              <InfoWindow
+                position={{ lat: searchLocation[0], lng: searchLocation[1] }}
+                onCloseClick={() => setSelectedMarker(null)}
+              >
+                <div className="text-center p-2">
+                  <div className="flex items-center justify-center mb-2">
+                    <Search size={24} className="text-green-600" />
+                    <p className="font-bold text-green-600 ml-2">Search Location</p>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Coordinates: {searchLocation[0].toFixed(4)}, {searchLocation[1].toFixed(4)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Area: {getLocationName(searchLocation)}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Hospitals within 100km radius are prioritized
+                  </p>
+                </div>
+              </InfoWindow>
+            )}
+          </>
+        )}
+
         {/* Ambulance marker with enhanced visibility */}
         <Marker
           position={{ lat: ambulanceLocation[0], lng: ambulanceLocation[1] }}
@@ -452,7 +515,10 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
           <div>
             <p className="font-medium text-gray-800">🌍 Global Emergency Response System</p>
             <p className="text-gray-600">
-              Featuring hospitals and intersections from major cities worldwide
+              {searchLocation 
+                ? 'Showing hospitals near your searched location'
+                : 'Featuring hospitals and intersections from major cities worldwide'
+              }
             </p>
           </div>
           <div className="text-right">
@@ -464,6 +530,14 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></div>
                 <span className="text-xs text-red-600 font-medium">
                   {alertingSignals.size} Signal(s) Active Globally
+                </span>
+              </div>
+            )}
+            {searchLocation && (
+              <div className="flex items-center justify-end mt-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                <span className="text-xs text-green-600 font-medium">
+                  Search Location Active
                 </span>
               </div>
             )}

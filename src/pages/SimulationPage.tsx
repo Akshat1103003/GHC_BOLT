@@ -33,6 +33,7 @@ const SimulationPage: React.FC = () => {
   const [hospitalStatus, setHospitalStatus] = useState('Waiting for notification');
   const [hospitalPreparationProgress, setHospitalPreparationProgress] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [searchLocationForMap, setSearchLocationForMap] = useState<[number, number] | null>(null);
 
   // Simulation steps description
   const simulationSteps = [
@@ -70,6 +71,11 @@ const SimulationPage: React.FC = () => {
     // Calculate route
     const route = calculateRoute(ambulanceLocation, hospital.id);
     setCurrentRoute(route);
+  };
+
+  // Handle search location change from HospitalSelect
+  const handleSearchLocationChange = (location: [number, number] | null) => {
+    setSearchLocationForMap(location);
   };
 
   // Start or pause simulation
@@ -251,7 +257,7 @@ const SimulationPage: React.FC = () => {
                 >
                   {isSimulationRunning ? (
                     <>
-                      <Pause className="mr-2\" size={18} />
+                      <Pause className="mr-2" size={18} />
                       Pause
                     </>
                   ) : (
@@ -310,11 +316,12 @@ const SimulationPage: React.FC = () => {
             />
           </div>
 
-          {/* Hospital selection */}
+          {/* Hospital selection with search */}
           <HospitalSelect
             hospitals={hospitals}
             currentLocation={ambulanceLocation}
             onSelect={handleHospitalSelect}
+            onSearchLocationChange={handleSearchLocationChange}
           />
           
           {/* Hospital preparation status */}
@@ -328,8 +335,8 @@ const SimulationPage: React.FC = () => {
 
         {/* Right column - Map and visualization */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Map view */}
-          <MapView />
+          {/* Map view with search location */}
+          <MapView searchLocation={searchLocationForMap} />
           
           {/* Traffic Signals Grid */}
           <div className="bg-white rounded-lg shadow-md p-6">
@@ -357,7 +364,7 @@ const SimulationPage: React.FC = () => {
               </p>
               
               <ol className="list-decimal list-inside space-y-2 text-gray-600 pl-4">
-                <li>Select a destination hospital from the list on the left</li>
+                <li>Search for a location or select a destination hospital from the list</li>
                 <li>Press the Start button to begin the simulation</li>
                 <li>Watch as the ambulance travels along the optimal route</li>
                 <li>Traffic signals will change status as the ambulance approaches</li>
@@ -367,7 +374,13 @@ const SimulationPage: React.FC = () => {
               
               <div className="mt-4 p-4 bg-blue-50 rounded-md">
                 <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> This system now uses real-time data from Supabase. All changes are synchronized across all connected clients in real-time.
+                  <strong>New Feature:</strong> Use the Google Maps search to find hospitals near any location worldwide. Simply type a city name, address, or landmark in the hospital search box.
+                </p>
+              </div>
+              
+              <div className="mt-4 p-4 bg-green-50 rounded-md">
+                <p className="text-sm text-green-800">
+                  <strong>Note:</strong> This system uses real-time data from Supabase. All changes are synchronized across all connected clients in real-time.
                 </p>
               </div>
             </div>

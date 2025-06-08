@@ -39,6 +39,8 @@ const DriverDashboard: React.FC = () => {
     details: 'Select a hospital to create a route',
   });
 
+  const [searchLocationForMap, setSearchLocationForMap] = useState<[number, number] | null>(null);
+
   // Handle hospital selection
   const handleHospitalSelect = (hospital: any) => {
     selectHospital(hospital);
@@ -58,6 +60,11 @@ const DriverDashboard: React.FC = () => {
     if (emergencyActive && simulation === null) {
       startSimulation(route);
     }
+  };
+
+  // Handle search location change from HospitalSelect
+  const handleSearchLocationChange = (location: [number, number] | null) => {
+    setSearchLocationForMap(location);
   };
 
   // Start the ambulance movement simulation
@@ -170,11 +177,12 @@ const DriverDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Hospital selection */}
+          {/* Hospital selection with search */}
           <HospitalSelect
             hospitals={hospitals}
             currentLocation={ambulanceLocation}
             onSelect={handleHospitalSelect}
+            onSearchLocationChange={handleSearchLocationChange}
           />
         </div>
 
@@ -200,9 +208,12 @@ const DriverDashboard: React.FC = () => {
             />
           </div>
 
-          {/* Map view - centered and prominent */}
+          {/* Map view with search location - centered and prominent */}
           <div className="flex-grow min-h-0">
-            <MapView className="h-full" />
+            <MapView 
+              className="h-full" 
+              searchLocation={searchLocationForMap}
+            />
           </div>
 
           {/* Notifications */}
