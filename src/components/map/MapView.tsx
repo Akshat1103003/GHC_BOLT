@@ -3,7 +3,6 @@ import { Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
 import { Ambulance, Building2, MapPin, AlertTriangle, Navigation, Globe } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { EmergencyStatus } from '../../types';
-import { AmbulanceIcon, HospitalIcon, TrafficSignalIcon } from './MapIcons';
 
 interface MapViewProps {
   className?: string;
@@ -139,78 +138,65 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
     return 'Global Location';
   };
 
-  // Create custom marker icons
-  const createMarkerIcon = (type: string, status?: EmergencyStatus, isAlerting?: boolean) => {
-    const canvas = document.createElement('canvas');
-    const size = type === 'ambulance' ? 40 : type === 'hospital' ? 36 : 32;
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
+  // Create SVG-based marker icons that are more reliable
+  const createSVGMarkerIcon = (type: string, status?: EmergencyStatus, isAlerting?: boolean) => {
+    let svgContent = '';
+    let size = 40;
+    let fillColor = '#FFFFFF';
+    let strokeColor = '#374151';
     
-    if (!ctx) return undefined;
-
-    // Draw background circle
-    ctx.fillStyle = 'white';
-    ctx.strokeStyle = '#374151';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(size / 2, size / 2, (size / 2) - 2, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.stroke();
-
-    // Draw icon based on type
-    const iconSize = size * 0.6;
-    const iconOffset = (size - iconSize) / 2;
-
     if (type === 'ambulance') {
-      // Draw ambulance icon
-      ctx.fillStyle = emergencyActive ? '#DC2626' : '#EF4444';
-      ctx.fillRect(iconOffset + 2, iconOffset + 8, iconSize - 4, iconSize - 12);
-      ctx.fillRect(iconOffset + 4, iconOffset + 4, iconSize - 8, 8);
-      
-      // Add cross
-      ctx.fillStyle = 'white';
-      ctx.fillRect(iconOffset + iconSize/2 - 1, iconOffset + 6, 2, 8);
-      ctx.fillRect(iconOffset + iconSize/2 - 3, iconOffset + iconSize/2 - 1, 6, 2);
+      size = 48;
+      fillColor = emergencyActive ? '#DC2626' : '#EF4444';
+      svgContent = `
+        <circle cx="24" cy="24" r="22" fill="white" stroke="${fillColor}" stroke-width="3"/>
+        <rect x="8" y="16" width="32" height="16" rx="2" fill="${fillColor}"/>
+        <rect x="10" y="10" width="28" height="12" rx="1" fill="${fillColor}"/>
+        <circle cx="14" cy="36" r="3" fill="white" stroke="${fillColor}" stroke-width="2"/>
+        <circle cx="34" cy="36" r="3" fill="white" stroke="${fillColor}" stroke-width="2"/>
+        <rect x="22" y="12" width="4" height="12" fill="white"/>
+        <rect x="16" y="16" width="16" height="4" fill="white"/>
+        ${emergencyActive ? '<circle cx="24" cy="8" r="3" fill="#FBBF24"><animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/></circle>' : ''}
+      `;
     } else if (type === 'hospital') {
-      // Draw hospital icon
-      ctx.fillStyle = '#2563EB';
-      ctx.fillRect(iconOffset + 2, iconOffset + 4, iconSize - 4, iconSize - 8);
-      
-      // Add cross
-      ctx.fillStyle = 'white';
-      ctx.fillRect(iconOffset + iconSize/2 - 2, iconOffset + 6, 4, iconSize - 12);
-      ctx.fillRect(iconOffset + 6, iconOffset + iconSize/2 - 2, iconSize - 12, 4);
+      size = 44;
+      fillColor = '#2563EB';
+      svgContent = `
+        <circle cx="22" cy="22" r="20" fill="white" stroke="${fillColor}" stroke-width="3"/>
+        <rect x="6" y="8" width="32" height="28" rx="2" fill="${fillColor}"/>
+        <rect x="18" y="12" width="8" height="20" fill="white"/>
+        <rect x="10" y="18" width="24" height="8" fill="white"/>
+        <circle cx="12" cy="14" r="1.5" fill="white"/>
+        <circle cx="32" cy="14" r="1.5" fill="white"/>
+        <circle cx="12" cy="30" r="1.5" fill="white"/>
+        <circle cx="32" cy="30" r="1.5" fill="white"/>
+      `;
     } else if (type === 'traffic') {
-      // Draw traffic signal
-      ctx.fillStyle = '#374151';
-      ctx.fillRect(iconOffset + iconSize/3, iconOffset + 2, iconSize/3, iconSize - 4);
+      size = 36;
+      fillColor = '#374151';
+      const redLight = status === EmergencyStatus.INACTIVE || isAlerting ? '#EF4444' : '#6B7280';
+      const yellowLight = status === EmergencyStatus.APPROACHING || isAlerting ? '#F59E0B' : '#6B7280';
+      const greenLight = status === EmergencyStatus.ACTIVE ? '#10B981' : '#6B7280';
       
-      // Draw lights
-      const lightSize = 4;
-      const lightSpacing = 6;
-      
-      // Red light
-      ctx.fillStyle = status === EmergencyStatus.INACTIVE ? '#EF4444' : '#6B7280';
-      ctx.beginPath();
-      ctx.arc(iconOffset + iconSize/2, iconOffset + 6, lightSize/2, 0, 2 * Math.PI);
-      ctx.fill();
-      
-      // Yellow light
-      ctx.fillStyle = status === EmergencyStatus.APPROACHING || isAlerting ? '#F59E0B' : '#6B7280';
-      ctx.beginPath();
-      ctx.arc(iconOffset + iconSize/2, iconOffset + 6 + lightSpacing, lightSize/2, 0, 2 * Math.PI);
-      ctx.fill();
-      
-      // Green light
-      ctx.fillStyle = status === EmergencyStatus.ACTIVE ? '#10B981' : '#6B7280';
-      ctx.beginPath();
-      ctx.arc(iconOffset + iconSize/2, iconOffset + 6 + lightSpacing * 2, lightSize/2, 0, 2 * Math.PI);
-      ctx.fill();
+      svgContent = `
+        <circle cx="18" cy="18" r="16" fill="white" stroke="${fillColor}" stroke-width="2"/>
+        <rect x="12" y="4" width="12" height="28" rx="3" fill="${fillColor}"/>
+        <circle cx="18" cy="10" r="3" fill="${redLight}"/>
+        <circle cx="18" cy="18" r="3" fill="${yellowLight}"/>
+        <circle cx="18" cy="26" r="3" fill="${greenLight}"/>
+        <rect x="17" y="30" width="2" height="6" fill="${fillColor}"/>
+        ${isAlerting ? '<circle cx="18" cy="18" r="18" fill="none" stroke="#F59E0B" stroke-width="2" opacity="0.6"><animate attributeName="r" values="16;20;16" dur="1s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.6;0.2;0.6" dur="1s" repeatCount="indefinite"/></circle>' : ''}
+      `;
     }
 
+    const svgString = `
+      <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">
+        ${svgContent}
+      </svg>
+    `;
+
     return {
-      url: canvas.toDataURL(),
+      url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgString)}`,
       size: new google.maps.Size(size, size),
       anchor: new google.maps.Point(size / 2, size / 2),
       scaledSize: new google.maps.Size(size, size)
@@ -288,16 +274,22 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
         </div>
         <div className="flex items-center space-x-4 text-xs">
           <div className="flex items-center">
-            <AmbulanceIcon size={16} />
-            <span className="ml-1">Ambulance</span>
+            <div className="w-4 h-4 bg-red-600 rounded-full mr-1 flex items-center justify-center">
+              <Ambulance size={10} className="text-white" />
+            </div>
+            <span>Ambulance</span>
           </div>
           <div className="flex items-center">
-            <HospitalIcon size={16} />
-            <span className="ml-1">Hospitals</span>
+            <div className="w-4 h-4 bg-blue-600 rounded-full mr-1 flex items-center justify-center">
+              <Building2 size={10} className="text-white" />
+            </div>
+            <span>Hospitals</span>
           </div>
           <div className="flex items-center">
-            <TrafficSignalIcon size={16} status="approaching" />
-            <span className="ml-1">Traffic Signals</span>
+            <div className="w-4 h-4 bg-amber-500 rounded-full mr-1 flex items-center justify-center">
+              <AlertTriangle size={8} className="text-white" />
+            </div>
+            <span>Traffic Signals</span>
           </div>
         </div>
       </div>
@@ -310,11 +302,12 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
         disableDefaultUI={false}
         onLoad={handleMapLoad}
       >
-        {/* Ambulance marker with custom icon */}
+        {/* Ambulance marker with enhanced visibility */}
         <Marker
           position={{ lat: ambulanceLocation[0], lng: ambulanceLocation[1] }}
-          icon={createMarkerIcon('ambulance')}
+          icon={createSVGMarkerIcon('ambulance')}
           onClick={() => setSelectedMarker('ambulance')}
+          zIndex={1000} // Ensure ambulance is always on top
         />
         
         {selectedMarker === 'ambulance' && (
@@ -324,7 +317,7 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
           >
             <div className="text-center p-2">
               <div className="flex items-center justify-center mb-2">
-                <AmbulanceIcon size={24} />
+                <Ambulance size={24} className="text-red-600" />
                 <p className="font-bold text-red-600 ml-2">Emergency Ambulance</p>
               </div>
               <p className="text-sm text-gray-600">
@@ -343,13 +336,14 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
           </InfoWindow>
         )}
         
-        {/* Selected hospital marker with custom icon */}
+        {/* Selected hospital marker with enhanced visibility */}
         {selectedHospital && (
           <>
             <Marker
               position={{ lat: selectedHospital.coordinates[0], lng: selectedHospital.coordinates[1] }}
-              icon={createMarkerIcon('hospital')}
+              icon={createSVGMarkerIcon('hospital')}
               onClick={() => setSelectedMarker('hospital')}
+              zIndex={900} // High priority for hospital
             />
             
             {selectedMarker === 'hospital' && (
@@ -359,7 +353,7 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
               >
                 <div className="p-2">
                   <div className="flex items-center mb-2">
-                    <HospitalIcon size={24} />
+                    <Building2 size={24} className="text-blue-600" />
                     <p className="font-bold text-blue-600 ml-2">{selectedHospital.name}</p>
                   </div>
                   <p className="text-sm text-gray-600">{selectedHospital.address}</p>
@@ -392,13 +386,14 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
           </>
         )}
         
-        {/* Traffic signal markers with custom icons */}
+        {/* Traffic signal markers with enhanced visibility */}
         {trafficSignals.map((signal) => (
           <React.Fragment key={signal.id}>
             <Marker
               position={{ lat: signal.coordinates[0], lng: signal.coordinates[1] }}
-              icon={createMarkerIcon('traffic', signal.status, alertingSignals.has(signal.id))}
+              icon={createSVGMarkerIcon('traffic', signal.status, alertingSignals.has(signal.id))}
               onClick={() => setSelectedMarker(`traffic-${signal.id}`)}
+              zIndex={800} // Lower priority than ambulance and hospital
             />
             
             {selectedMarker === `traffic-${signal.id}` && (
@@ -408,7 +403,7 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
               >
                 <div className="p-2">
                   <div className="flex items-center mb-2">
-                    <TrafficSignalIcon size={24} status={signal.status} />
+                    <AlertTriangle size={24} className="text-amber-500" />
                     <p className="font-bold ml-2">Traffic Signal</p>
                   </div>
                   <p className="text-sm">{signal.intersection}</p>
