@@ -46,9 +46,9 @@ export const TrafficSignalIcon = ({ size = 24, color = '#F59E0B', status = 'inac
       <circle cx="12" cy="14" r="2" fill={status === 'active' ? '#10B981' : '#6B7280'}/>
       <rect x="11" y="18" width="2" height="4" fill="#374151"/>
       {status === 'approaching' && (
-        <circle cx="12" cy="10" r="3" fill="none" stroke="#F59E0B" strokeWidth="1" opacity="0.6">
-          <animate attributeName="r" values="2;4;2" dur="1s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1s" repeatCount="indefinite"/>
+        <circle cx="12\" cy="10\" r="3\" fill="none\" stroke="#F59E0B\" strokeWidth="1\" opacity="0.6">
+          <animate attributeName="r\" values="2;4;2\" dur="1s\" repeatCount="indefinite"/>
+          <animate attributeName="opacity\" values="0.6;0.2;0.6\" dur="1s\" repeatCount="indefinite"/>
         </circle>
       )}
     </svg>
