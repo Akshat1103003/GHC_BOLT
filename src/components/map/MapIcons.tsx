@@ -55,45 +55,6 @@ export const TrafficSignalIcon = ({ size = 24, color = '#F59E0B', status = 'inac
   );
 };
 
-export const POIIcon = ({ size = 20, color = '#6B7280', type = 'default' }: { 
-  size?: number; 
-  color?: string; 
-  type?: string;
-}) => {
-  const getIcon = () => {
-    switch (type) {
-      case 'fire_station':
-        return (
-          <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="4" y="8" width="16" height="12" rx="2" fill="#DC2626" stroke="white" strokeWidth="1"/>
-            <polygon points="12,2 6,8 18,8" fill="#DC2626" stroke="white" strokeWidth="1"/>
-            <rect x="10" y="12" width="4" height="6" fill="white"/>
-            <circle cx="8" cy="14" r="1" fill="white"/>
-            <circle cx="16" cy="14" r="1" fill="white"/>
-          </svg>
-        );
-      case 'police_station':
-        return (
-          <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="4" y="8" width="16" height="12" rx="2" fill="#1D4ED8" stroke="white" strokeWidth="1"/>
-            <polygon points="12,2 6,8 18,8" fill="#1D4ED8" stroke="white" strokeWidth="1"/>
-            <rect x="10" y="12" width="4" height="6" fill="white"/>
-            <circle cx="12" cy="5" r="1" fill="white"/>
-          </svg>
-        );
-      default:
-        return (
-          <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="8" fill={color} stroke="white" strokeWidth="1"/>
-            <circle cx="12" cy="12" r="3" fill="white"/>
-          </svg>
-        );
-    }
-  };
-
-  return getIcon();
-};
-
 // Helper function to create custom marker icons
 export const createCustomMarkerIcon = (
   iconComponent: React.ReactElement,
