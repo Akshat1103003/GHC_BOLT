@@ -4,6 +4,7 @@ import { Ambulance, Building2, MapPin, AlertTriangle, Navigation, Globe } from '
 import { useAppContext } from '../../contexts/AppContext';
 import { EmergencyStatus } from '../../types';
 import { getNearbyPOIs } from '../../utils/mockData';
+import { AmbulanceIcon, HospitalIcon, TrafficSignalIcon, POIIcon } from './MapIcons';
 
 interface MapViewProps {
   className?: string;
@@ -146,21 +147,88 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
     return 'Global Location';
   };
 
-  // Get marker color based on type and status
-  const getMarkerColor = (type: string, status?: EmergencyStatus, isAlerting?: boolean) => {
-    if (type === 'ambulance') return '#DC2626'; // red-600
-    if (type === 'hospital') return '#2563EB'; // blue-600
-    if (type === 'traffic') {
-      if (isAlerting) return '#DC2626'; // red-600
-      switch (status) {
-        case EmergencyStatus.APPROACHING: return '#F59E0B'; // amber-500
-        case EmergencyStatus.ACTIVE: return '#10B981'; // green-500
-        case EmergencyStatus.PASSED: return '#6B7280'; // gray-500
-        default: return '#9CA3AF'; // gray-400
-      }
+  // Create custom marker icons
+  const createMarkerIcon = (type: string, status?: EmergencyStatus, isAlerting?: boolean) => {
+    const canvas = document.createElement('canvas');
+    const size = type === 'ambulance' ? 40 : type === 'hospital' ? 36 : 32;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) return undefined;
+
+    // Draw background circle
+    ctx.fillStyle = 'white';
+    ctx.strokeStyle = '#374151';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, (size / 2) - 2, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.stroke();
+
+    // Draw icon based on type
+    const iconSize = size * 0.6;
+    const iconOffset = (size - iconSize) / 2;
+
+    if (type === 'ambulance') {
+      // Draw ambulance icon
+      ctx.fillStyle = emergencyActive ? '#DC2626' : '#EF4444';
+      ctx.fillRect(iconOffset + 2, iconOffset + 8, iconSize - 4, iconSize - 12);
+      ctx.fillRect(iconOffset + 4, iconOffset + 4, iconSize - 8, 8);
+      
+      // Add cross
+      ctx.fillStyle = 'white';
+      ctx.fillRect(iconOffset + iconSize/2 - 1, iconOffset + 6, 2, 8);
+      ctx.fillRect(iconOffset + iconSize/2 - 3, iconOffset + iconSize/2 - 1, 6, 2);
+    } else if (type === 'hospital') {
+      // Draw hospital icon
+      ctx.fillStyle = '#2563EB';
+      ctx.fillRect(iconOffset + 2, iconOffset + 4, iconSize - 4, iconSize - 8);
+      
+      // Add cross
+      ctx.fillStyle = 'white';
+      ctx.fillRect(iconOffset + iconSize/2 - 2, iconOffset + 6, 4, iconSize - 12);
+      ctx.fillRect(iconOffset + 6, iconOffset + iconSize/2 - 2, iconSize - 12, 4);
+    } else if (type === 'traffic') {
+      // Draw traffic signal
+      ctx.fillStyle = '#374151';
+      ctx.fillRect(iconOffset + iconSize/3, iconOffset + 2, iconSize/3, iconSize - 4);
+      
+      // Draw lights
+      const lightSize = 4;
+      const lightSpacing = 6;
+      
+      // Red light
+      ctx.fillStyle = status === EmergencyStatus.INACTIVE ? '#EF4444' : '#6B7280';
+      ctx.beginPath();
+      ctx.arc(iconOffset + iconSize/2, iconOffset + 6, lightSize/2, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      // Yellow light
+      ctx.fillStyle = status === EmergencyStatus.APPROACHING || isAlerting ? '#F59E0B' : '#6B7280';
+      ctx.beginPath();
+      ctx.arc(iconOffset + iconSize/2, iconOffset + 6 + lightSpacing, lightSize/2, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      // Green light
+      ctx.fillStyle = status === EmergencyStatus.ACTIVE ? '#10B981' : '#6B7280';
+      ctx.beginPath();
+      ctx.arc(iconOffset + iconSize/2, iconOffset + 6 + lightSpacing * 2, lightSize/2, 0, 2 * Math.PI);
+      ctx.fill();
+    } else {
+      // POI icon
+      ctx.fillStyle = '#6B7280';
+      ctx.beginPath();
+      ctx.arc(iconOffset + iconSize/2, iconOffset + iconSize/2, iconSize/4, 0, 2 * Math.PI);
+      ctx.fill();
     }
-    if (type === 'poi') return '#6B7280'; // gray-500
-    return '#9CA3AF';
+
+    return {
+      url: canvas.toDataURL(),
+      size: new google.maps.Size(size, size),
+      anchor: new google.maps.Point(size / 2, size / 2),
+      scaledSize: new google.maps.Size(size, size)
+    };
   };
 
   // Handle map load
@@ -234,16 +302,16 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
         </div>
         <div className="flex items-center space-x-4 text-xs">
           <div className="flex items-center">
-            <div className="w-3 h-3 bg-red-600 rounded-full mr-1"></div>
-            <span>Ambulance</span>
+            <AmbulanceIcon size={16} />
+            <span className="ml-1">Ambulance</span>
           </div>
           <div className="flex items-center">
-            <div className="w-3 h-3 bg-blue-600 rounded-full mr-1"></div>
-            <span>Hospitals</span>
+            <HospitalIcon size={16} />
+            <span className="ml-1">Hospitals</span>
           </div>
           <div className="flex items-center">
-            <div className="w-3 h-3 bg-amber-500 rounded-full mr-1"></div>
-            <span>Traffic Signals</span>
+            <TrafficSignalIcon size={16} status="approaching" />
+            <span className="ml-1">Traffic Signals</span>
           </div>
         </div>
       </div>
@@ -256,17 +324,10 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
         disableDefaultUI={false}
         onLoad={handleMapLoad}
       >
-        {/* Ambulance marker */}
+        {/* Ambulance marker with custom icon */}
         <Marker
           position={{ lat: ambulanceLocation[0], lng: ambulanceLocation[1] }}
-          icon={{
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 12,
-            fillColor: getMarkerColor('ambulance'),
-            fillOpacity: 1,
-            strokeColor: '#FFFFFF',
-            strokeWeight: 2,
-          }}
+          icon={createMarkerIcon('ambulance')}
           onClick={() => setSelectedMarker('ambulance')}
         />
         
@@ -276,7 +337,10 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
             onCloseClick={() => setSelectedMarker(null)}
           >
             <div className="text-center p-2">
-              <p className="font-bold text-red-600">🚑 Emergency Ambulance</p>
+              <div className="flex items-center justify-center mb-2">
+                <AmbulanceIcon size={24} />
+                <p className="font-bold text-red-600 ml-2">Emergency Ambulance</p>
+              </div>
               <p className="text-sm text-gray-600">
                 Location: {ambulanceLocation[0].toFixed(4)}, {ambulanceLocation[1].toFixed(4)}
               </p>
@@ -293,19 +357,12 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
           </InfoWindow>
         )}
         
-        {/* Selected hospital marker */}
+        {/* Selected hospital marker with custom icon */}
         {selectedHospital && (
           <>
             <Marker
               position={{ lat: selectedHospital.coordinates[0], lng: selectedHospital.coordinates[1] }}
-              icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 12,
-                fillColor: getMarkerColor('hospital'),
-                fillOpacity: 1,
-                strokeColor: '#FFFFFF',
-                strokeWeight: 2,
-              }}
+              icon={createMarkerIcon('hospital')}
               onClick={() => setSelectedMarker('hospital')}
             />
             
@@ -315,7 +372,10 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
                 onCloseClick={() => setSelectedMarker(null)}
               >
                 <div className="p-2">
-                  <p className="font-bold text-blue-600">🏥 {selectedHospital.name}</p>
+                  <div className="flex items-center mb-2">
+                    <HospitalIcon size={24} />
+                    <p className="font-bold text-blue-600 ml-2">{selectedHospital.name}</p>
+                  </div>
                   <p className="text-sm text-gray-600">{selectedHospital.address}</p>
                   <p className="text-sm mt-1">
                     {selectedHospital.emergencyReady ? (
@@ -346,19 +406,12 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
           </>
         )}
         
-        {/* Traffic signal markers */}
+        {/* Traffic signal markers with custom icons */}
         {trafficSignals.map((signal) => (
           <React.Fragment key={signal.id}>
             <Marker
               position={{ lat: signal.coordinates[0], lng: signal.coordinates[1] }}
-              icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 8,
-                fillColor: getMarkerColor('traffic', signal.status, alertingSignals.has(signal.id)),
-                fillOpacity: 1,
-                strokeColor: '#FFFFFF',
-                strokeWeight: 1,
-              }}
+              icon={createMarkerIcon('traffic', signal.status, alertingSignals.has(signal.id))}
               onClick={() => setSelectedMarker(`traffic-${signal.id}`)}
             />
             
@@ -368,7 +421,10 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
                 onCloseClick={() => setSelectedMarker(null)}
               >
                 <div className="p-2">
-                  <p className="font-bold">🚦 Traffic Signal</p>
+                  <div className="flex items-center mb-2">
+                    <TrafficSignalIcon size={24} status={signal.status} />
+                    <p className="font-bold ml-2">Traffic Signal</p>
+                  </div>
                   <p className="text-sm">{signal.intersection}</p>
                   <p className="text-sm mt-1">
                     Status: {' '}
@@ -398,19 +454,12 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
           </React.Fragment>
         ))}
         
-        {/* Nearby POIs */}
+        {/* Nearby POIs with custom icons */}
         {nearbyPOIs.map((poi, index) => (
           <React.Fragment key={`poi-${index}`}>
             <Marker
               position={{ lat: poi.coordinates[0], lng: poi.coordinates[1] }}
-              icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 6,
-                fillColor: getMarkerColor('poi'),
-                fillOpacity: 1,
-                strokeColor: '#FFFFFF',
-                strokeWeight: 1,
-              }}
+              icon={createMarkerIcon('poi')}
               onClick={() => setSelectedMarker(`poi-${index}`)}
             />
             
@@ -420,7 +469,10 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
                 onCloseClick={() => setSelectedMarker(null)}
               >
                 <div className="p-2">
-                  <p className="font-bold text-gray-800">{poi.name}</p>
+                  <div className="flex items-center mb-2">
+                    <POIIcon size={20} type={poi.type} />
+                    <p className="font-bold text-gray-800 ml-2">{poi.name}</p>
+                  </div>
                   <p className="text-sm text-gray-600 capitalize">{poi.type.replace('_', ' ')}</p>
                   <p className="text-xs text-gray-500 mt-1">
                     Distance: {calculateDistance(ambulanceLocation, poi.coordinates).toFixed(1)}km
