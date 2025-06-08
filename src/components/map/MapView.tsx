@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
-import { Ambulance, Building2, MapPin, AlertTriangle, Navigation, Globe, Search } from 'lucide-react';
+import { Ambulance, Building2, MapPin, AlertTriangle, Navigation, Globe, Search, Route } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { EmergencyStatus } from '../../types';
 
@@ -21,6 +21,110 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
   const [alertingSignals, setAlertingSignals] = useState<Set<string>>(new Set());
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+  const [routePolyline, setRoutePolyline] = useState<google.maps.Polyline | null>(null);
+  const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
+  const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
+
+  // Initialize Google Maps services
+  useEffect(() => {
+    if (window.google && window.google.maps) {
+      setDirectionsService(new google.maps.DirectionsService());
+      setDirectionsRenderer(new google.maps.DirectionsRenderer({
+        suppressMarkers: true, // We'll use our custom markers
+        polylineOptions: {
+          strokeColor: emergencyActive ? '#DC2626' : '#3B82F6',
+          strokeWeight: emergencyActive ? 6 : 4,
+          strokeOpacity: 0.8,
+        }
+      }));
+    }
+  }, [emergencyActive]);
+
+  // Set up directions renderer when map is loaded
+  useEffect(() => {
+    if (mapInstance && directionsRenderer) {
+      directionsRenderer.setMap(mapInstance);
+    }
+  }, [mapInstance, directionsRenderer]);
+
+  // Create route when hospital is selected
+  useEffect(() => {
+    if (!selectedHospital || !directionsService || !directionsRenderer || !mapInstance) {
+      // Clear existing route
+      if (directionsRenderer) {
+        directionsRenderer.setDirections({ routes: [] } as any);
+      }
+      return;
+    }
+
+    // Calculate route using Google Directions API
+    const request: google.maps.DirectionsRequest = {
+      origin: { lat: ambulanceLocation[0], lng: ambulanceLocation[1] },
+      destination: { lat: selectedHospital.coordinates[0], lng: selectedHospital.coordinates[1] },
+      travelMode: google.maps.TravelMode.DRIVING,
+      avoidHighways: false,
+      avoidTolls: false,
+      optimizeWaypoints: true,
+    };
+
+    directionsService.route(request, (result, status) => {
+      if (status === google.maps.DirectionsStatus.OK && result) {
+        // Update polyline color based on emergency status
+        directionsRenderer.setOptions({
+          polylineOptions: {
+            strokeColor: emergencyActive ? '#DC2626' : '#3B82F6',
+            strokeWeight: emergencyActive ? 8 : 5,
+            strokeOpacity: 0.9,
+            strokeDashArray: emergencyActive ? undefined : [10, 5], // Dashed line when not in emergency
+          }
+        });
+        
+        directionsRenderer.setDirections(result);
+        
+        // Fit map to show entire route
+        const bounds = new google.maps.LatLngBounds();
+        bounds.extend({ lat: ambulanceLocation[0], lng: ambulanceLocation[1] });
+        bounds.extend({ lat: selectedHospital.coordinates[0], lng: selectedHospital.coordinates[1] });
+        mapInstance.fitBounds(bounds, { padding: 50 });
+      } else {
+        console.error('Directions request failed:', status);
+        // Fallback to simple polyline
+        createFallbackRoute();
+      }
+    });
+  }, [selectedHospital, ambulanceLocation, directionsService, directionsRenderer, mapInstance, emergencyActive]);
+
+  // Fallback route creation using simple polyline
+  const createFallbackRoute = () => {
+    if (!selectedHospital || !mapInstance) return;
+
+    // Clear existing polyline
+    if (routePolyline) {
+      routePolyline.setMap(null);
+    }
+
+    // Create simple direct route
+    const path = [
+      { lat: ambulanceLocation[0], lng: ambulanceLocation[1] },
+      { lat: selectedHospital.coordinates[0], lng: selectedHospital.coordinates[1] }
+    ];
+
+    const newPolyline = new google.maps.Polyline({
+      path,
+      strokeColor: emergencyActive ? '#DC2626' : '#3B82F6',
+      strokeWeight: emergencyActive ? 8 : 5,
+      strokeOpacity: 0.9,
+      strokeDashArray: emergencyActive ? undefined : [10, 5],
+      map: mapInstance,
+    });
+
+    setRoutePolyline(newPolyline);
+
+    // Fit map to show route
+    const bounds = new google.maps.LatLngBounds();
+    path.forEach(point => bounds.extend(point));
+    mapInstance.fitBounds(bounds, { padding: 50 });
+  };
 
   // Monitor ambulance proximity to traffic signals
   useEffect(() => {
@@ -225,14 +329,16 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
         // Center on search location
         mapInstance.setCenter({ lat: searchLocation[0], lng: searchLocation[1] });
         mapInstance.setZoom(10);
-      } else if (emergencyActive) {
-        // For global view, use a wider zoom level
-        const zoomLevel = selectedHospital ? 
-          (calculateDistance(ambulanceLocation, selectedHospital.coordinates) > 100 ? 6 : 10) : 
-          10;
-        
+      } else if (emergencyActive && selectedHospital) {
+        // For emergency mode, fit bounds to show both ambulance and hospital
+        const bounds = new google.maps.LatLngBounds();
+        bounds.extend({ lat: ambulanceLocation[0], lng: ambulanceLocation[1] });
+        bounds.extend({ lat: selectedHospital.coordinates[0], lng: selectedHospital.coordinates[1] });
+        mapInstance.fitBounds(bounds, { padding: 100 });
+      } else {
+        // Default view centered on ambulance
         mapInstance.setCenter({ lat: ambulanceLocation[0], lng: ambulanceLocation[1] });
-        mapInstance.setZoom(Math.max(mapInstance.getZoom() || 10, zoomLevel));
+        mapInstance.setZoom(10);
       }
     }
   }, [ambulanceLocation, mapInstance, emergencyActive, selectedHospital, searchLocation]);
@@ -247,32 +353,17 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     return 10;
   };
 
-  // Custom Polyline component using Google Maps API directly
-  const RoutePolyline = ({ path, strokeColor, strokeWeight, strokeOpacity }: {
-    path: { lat: number; lng: number }[];
-    strokeColor: string;
-    strokeWeight: number;
-    strokeOpacity: number;
-  }) => {
-    useEffect(() => {
-      if (!mapInstance || !path.length) return;
-
-      const polyline = new google.maps.Polyline({
-        path,
-        strokeColor,
-        strokeWeight,
-        strokeOpacity,
-      });
-
-      polyline.setMap(mapInstance);
-
-      return () => {
-        polyline.setMap(null);
-      };
-    }, [mapInstance, path, strokeColor, strokeWeight, strokeOpacity]);
-
-    return null;
-  };
+  // Cleanup polylines when component unmounts
+  useEffect(() => {
+    return () => {
+      if (routePolyline) {
+        routePolyline.setMap(null);
+      }
+      if (directionsRenderer) {
+        directionsRenderer.setMap(null);
+      }
+    };
+  }, []);
 
   return (
     <div className={`rounded-lg overflow-hidden shadow-lg ${className}`}>
@@ -290,6 +381,12 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
           <span>Global Emergency Response System</span>
           {searchLocation && (
             <span className="text-green-600 font-medium">• Search Location Active</span>
+          )}
+          {selectedHospital && (
+            <span className="text-blue-600 font-medium flex items-center">
+              <Route size={14} className="mr-1" />
+              • Route Active
+            </span>
           )}
         </div>
         <div className="flex items-center space-x-4 text-xs">
@@ -357,7 +454,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                     Area: {getLocationName(searchLocation)}
                   </p>
                   <p className="text-xs text-blue-600 mt-1">
-                    Hospitals within 100km radius are prioritized
+                    Hospitals within 200km radius are prioritized
                   </p>
                 </div>
               </InfoWindow>
@@ -391,9 +488,14 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
               </p>
               {emergencyActive && <p className="text-red-600 font-bold mt-1">🚨 EMERGENCY ACTIVE</p>}
               {selectedHospital && (
-                <p className="text-blue-600 text-sm mt-1">
-                  → Destination: {selectedHospital.name}
-                </p>
+                <div className="mt-2 p-2 bg-blue-50 rounded">
+                  <p className="text-blue-600 text-sm font-medium">
+                    → Destination: {selectedHospital.name}
+                  </p>
+                  <p className="text-xs text-blue-500">
+                    Distance: {calculateDistance(ambulanceLocation, selectedHospital.coordinates).toFixed(1)}km
+                  </p>
+                </div>
               )}
             </div>
           </InfoWindow>
@@ -437,9 +539,14 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                       ))}
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Distance: {calculateDistance(ambulanceLocation, selectedHospital.coordinates).toFixed(1)}km
-                  </p>
+                  <div className="mt-2 p-2 bg-green-50 rounded">
+                    <p className="text-xs text-green-800 font-medium">
+                      🚨 Emergency Route Calculated
+                    </p>
+                    <p className="text-xs text-green-600">
+                      Distance: {calculateDistance(ambulanceLocation, selectedHospital.coordinates).toFixed(1)}km
+                    </p>
+                  </div>
                   <p className="text-xs text-gray-400 mt-1">
                     {getLocationName(selectedHospital.coordinates)}
                   </p>
@@ -497,16 +604,6 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
             )}
           </React.Fragment>
         ))}
-        
-        {/* Route polyline using custom component */}
-        {currentRoute && (
-          <RoutePolyline
-            path={currentRoute.waypoints.map(point => ({ lat: point[0], lng: point[1] }))}
-            strokeColor={emergencyActive ? '#DC2626' : '#3B82F6'}
-            strokeWeight={emergencyActive ? 6 : 4}
-            strokeOpacity={0.8}
-          />
-        )}
       </Map>
       
       {/* Global Location Info Panel */}
@@ -517,6 +614,8 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
             <p className="text-gray-600">
               {searchLocation 
                 ? 'Showing hospitals near your searched location'
+                : selectedHospital
+                ? `Route active to ${selectedHospital.name}`
                 : 'Featuring hospitals and intersections from major cities worldwide'
               }
             </p>
@@ -525,6 +624,14 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
             <p className="text-xs text-gray-500">
               {trafficSignals.length} Global Intersections • Emergency Services Network
             </p>
+            {selectedHospital && (
+              <div className="flex items-center justify-end mt-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                <span className="text-xs text-blue-600 font-medium">
+                  Route: {calculateDistance(ambulanceLocation, selectedHospital.coordinates).toFixed(1)}km
+                </span>
+              </div>
+            )}
             {alertingSignals.size > 0 && (
               <div className="flex items-center justify-end mt-1">
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></div>
