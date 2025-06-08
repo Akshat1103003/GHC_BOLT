@@ -3,8 +3,7 @@ import { Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
 import { Ambulance, Building2, MapPin, AlertTriangle, Navigation, Globe } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { EmergencyStatus } from '../../types';
-import { getNearbyPOIs } from '../../utils/mockData';
-import { AmbulanceIcon, HospitalIcon, TrafficSignalIcon, POIIcon } from './MapIcons';
+import { AmbulanceIcon, HospitalIcon, TrafficSignalIcon } from './MapIcons';
 
 interface MapViewProps {
   className?: string;
@@ -20,15 +19,8 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
   } = useAppContext();
 
   const [alertingSignals, setAlertingSignals] = useState<Set<string>>(new Set());
-  const [nearbyPOIs, setNearbyPOIs] = useState<any[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
-
-  // Update nearby POIs when ambulance location changes
-  useEffect(() => {
-    const pois = getNearbyPOIs(ambulanceLocation, 50); // 50km radius for global view
-    setNearbyPOIs(pois);
-  }, [ambulanceLocation]);
 
   // Monitor ambulance proximity to traffic signals
   useEffect(() => {
@@ -214,12 +206,6 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
       ctx.fillStyle = status === EmergencyStatus.ACTIVE ? '#10B981' : '#6B7280';
       ctx.beginPath();
       ctx.arc(iconOffset + iconSize/2, iconOffset + 6 + lightSpacing * 2, lightSize/2, 0, 2 * Math.PI);
-      ctx.fill();
-    } else {
-      // POI icon
-      ctx.fillStyle = '#6B7280';
-      ctx.beginPath();
-      ctx.arc(iconOffset + iconSize/2, iconOffset + iconSize/2, iconSize/4, 0, 2 * Math.PI);
       ctx.fill();
     }
 
@@ -454,38 +440,6 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
           </React.Fragment>
         ))}
         
-        {/* Nearby POIs with custom icons */}
-        {nearbyPOIs.map((poi, index) => (
-          <React.Fragment key={`poi-${index}`}>
-            <Marker
-              position={{ lat: poi.coordinates[0], lng: poi.coordinates[1] }}
-              icon={createMarkerIcon('poi')}
-              onClick={() => setSelectedMarker(`poi-${index}`)}
-            />
-            
-            {selectedMarker === `poi-${index}` && (
-              <InfoWindow
-                position={{ lat: poi.coordinates[0], lng: poi.coordinates[1] }}
-                onCloseClick={() => setSelectedMarker(null)}
-              >
-                <div className="p-2">
-                  <div className="flex items-center mb-2">
-                    <POIIcon size={20} type={poi.type} />
-                    <p className="font-bold text-gray-800 ml-2">{poi.name}</p>
-                  </div>
-                  <p className="text-sm text-gray-600 capitalize">{poi.type.replace('_', ' ')}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Distance: {calculateDistance(ambulanceLocation, poi.coordinates).toFixed(1)}km
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {getLocationName(poi.coordinates)}
-                  </p>
-                </div>
-              </InfoWindow>
-            )}
-          </React.Fragment>
-        ))}
-        
         {/* Route polyline using custom component */}
         {currentRoute && (
           <RoutePolyline
@@ -508,7 +462,7 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-500">
-              {trafficSignals.length} Global Intersections • {nearbyPOIs.length} Emergency Services Nearby
+              {trafficSignals.length} Global Intersections • Emergency Services Network
             </p>
             {alertingSignals.size > 0 && (
               <div className="flex items-center justify-end mt-1">
