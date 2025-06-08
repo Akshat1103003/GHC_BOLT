@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Map } from '@vis.gl/react-google-maps';
-import { Marker, Polyline, InfoWindow } from '@vis.gl/react-google-maps/overlays';
+import { Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
 import { Ambulance, Building2, MapPin, AlertTriangle, Navigation, Globe } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { EmergencyStatus } from '../../types';
@@ -189,6 +188,33 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
       return distance > 100 ? 6 : 10;
     }
     return 10;
+  };
+
+  // Custom Polyline component using Google Maps API directly
+  const RoutePolyline = ({ path, strokeColor, strokeWeight, strokeOpacity }: {
+    path: { lat: number; lng: number }[];
+    strokeColor: string;
+    strokeWeight: number;
+    strokeOpacity: number;
+  }) => {
+    useEffect(() => {
+      if (!mapInstance || !path.length) return;
+
+      const polyline = new google.maps.Polyline({
+        path,
+        strokeColor,
+        strokeWeight,
+        strokeOpacity,
+      });
+
+      polyline.setMap(mapInstance);
+
+      return () => {
+        polyline.setMap(null);
+      };
+    }, [mapInstance, path, strokeColor, strokeWeight, strokeOpacity]);
+
+    return null;
   };
 
   return (
@@ -408,15 +434,13 @@ const MapView: React.FC<MapViewProps> = ({ className = '' }) => {
           </React.Fragment>
         ))}
         
-        {/* Route polyline */}
+        {/* Route polyline using custom component */}
         {currentRoute && (
-          <Polyline
+          <RoutePolyline
             path={currentRoute.waypoints.map(point => ({ lat: point[0], lng: point[1] }))}
-            options={{
-              strokeColor: emergencyActive ? '#DC2626' : '#3B82F6',
-              strokeWeight: emergencyActive ? 6 : 4,
-              strokeOpacity: 0.8,
-            }}
+            strokeColor={emergencyActive ? '#DC2626' : '#3B82F6'}
+            strokeWeight={emergencyActive ? 6 : 4}
+            strokeOpacity={0.8}
           />
         )}
       </Map>
