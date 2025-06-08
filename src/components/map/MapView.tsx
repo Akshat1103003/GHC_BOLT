@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Map, Marker, Polyline, InfoWindow } from '@vis.gl/react-google-maps';
+import { Map } from '@vis.gl/react-google-maps';
+import { Marker, Polyline, InfoWindow } from '@vis.gl/react-google-maps/overlays';
 import { Ambulance, Building2, MapPin, AlertTriangle, Navigation, Globe } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { EmergencyStatus } from '../../types';
