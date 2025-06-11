@@ -61,19 +61,62 @@ function App() {
                 </a>
               </div>
               
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-green-900 mb-2">Step 3: Enable Maps JavaScript API</h3>
-                <p className="text-green-800 text-sm mb-2">
-                  In the Google Cloud Console, make sure to enable the "Maps JavaScript API" for your project.
+              <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
+                <h3 className="font-semibold text-green-900 mb-2">Step 3: Enable Required APIs</h3>
+                <p className="text-green-800 text-sm mb-3">
+                  <strong>CRITICAL:</strong> You must enable these specific APIs for the application to work:
                 </p>
-                <a 
-                  href="https://console.cloud.google.com/apis/library/maps-backend.googleapis.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-block bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
-                >
-                  Enable Maps API
-                </a>
+                <div className="space-y-2 mb-3">
+                  <div className="bg-white p-2 rounded border">
+                    <p className="font-medium text-green-900">Maps JavaScript API</p>
+                    <a 
+                      href="https://console.cloud.google.com/apis/library/maps-backend.googleapis.com" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-xs text-green-600 hover:underline"
+                    >
+                      Enable Maps JavaScript API →
+                    </a>
+                  </div>
+                  <div className="bg-white p-2 rounded border">
+                    <p className="font-medium text-green-900">Places API (New)</p>
+                    <a 
+                      href="https://console.cloud.google.com/apis/library/places-backend.googleapis.com" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-xs text-green-600 hover:underline"
+                    >
+                      Enable Places API (New) →
+                    </a>
+                  </div>
+                  <div className="bg-white p-2 rounded border">
+                    <p className="font-medium text-green-900">Geocoding API</p>
+                    <a 
+                      href="https://console.cloud.google.com/apis/library/geocoding-backend.googleapis.com" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-xs text-green-600 hover:underline"
+                    >
+                      Enable Geocoding API →
+                    </a>
+                  </div>
+                  <div className="bg-white p-2 rounded border">
+                    <p className="font-medium text-green-900">Directions API</p>
+                    <a 
+                      href="https://console.cloud.google.com/apis/library/directions-backend.googleapis.com" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-xs text-green-600 hover:underline"
+                    >
+                      Enable Directions API →
+                    </a>
+                  </div>
+                </div>
+                <div className="bg-green-100 p-2 rounded">
+                  <p className="text-xs text-green-800">
+                    <strong>Quick Enable All:</strong> Go to APIs & Services → Library, search for each API above and click "Enable"
+                  </p>
+                </div>
               </div>
               
               <div className="bg-yellow-50 p-4 rounded-lg">
@@ -100,12 +143,27 @@ function App() {
           </div>
           
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-            <h3 className="font-semibold text-amber-900 mb-2">💡 Important Notes</h3>
-            <ul className="text-amber-800 text-sm space-y-1">
+            <h3 className="font-semibold text-amber-900 mb-2">⚠️ Common Error Fix</h3>
+            <div className="text-amber-800 text-sm space-y-2">
+              <p>If you see "legacy API" errors, make sure you've enabled:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li><strong>Places API (New)</strong> - NOT the old Places API</li>
+                <li><strong>Geocoding API</strong> - For address search</li>
+                <li><strong>Directions API</strong> - For route calculation</li>
+                <li><strong>Maps JavaScript API</strong> - For map display</li>
+              </ul>
+              <p className="font-medium">All four APIs must be enabled for the app to work!</p>
+            </div>
+          </div>
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <h3 className="font-semibold text-blue-900 mb-2">💡 Important Notes</h3>
+            <ul className="text-blue-800 text-sm space-y-1">
               <li>• Billing is required even for free tier usage</li>
               <li>• Google provides $200 monthly credit for Maps API</li>
               <li>• Development usage typically costs $0</li>
               <li>• You can set up billing alerts to monitor usage</li>
+              <li>• Enable all 4 APIs listed above to avoid errors</li>
             </ul>
           </div>
           
