@@ -3,6 +3,7 @@ import { Clock, User, MapPin, Guitar as Hospital } from 'lucide-react';
 import MapView from '../components/map/MapView';
 import EmergencyToggle from '../components/common/EmergencyToggle';
 import HospitalSelect from '../components/common/HospitalSelect';
+import LocationSelector from '../components/common/LocationSelector';
 import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import NotificationPanel from '../components/notifications/NotificationPanel';
@@ -40,13 +41,41 @@ const DriverDashboard: React.FC = () => {
   });
 
   const [searchLocationForMap, setSearchLocationForMap] = useState<[number, number] | null>(null);
+  const [emergencyLocation, setEmergencyLocation] = useState<[number, number]>(ambulanceLocation);
+  const [emergencyLocationType, setEmergencyLocationType] = useState<'current' | 'selected'>('current');
+  const [emergencyLocationName, setEmergencyLocationName] = useState<string>('Current Location');
+
+  // Handle emergency location change
+  const handleEmergencyLocationChange = (
+    location: [number, number], 
+    locationType: 'current' | 'selected',
+    locationName?: string
+  ) => {
+    setEmergencyLocation(location);
+    setEmergencyLocationType(locationType);
+    setEmergencyLocationName(locationName || 'Emergency Location');
+    
+    // Update ambulance location to the emergency location
+    updateAmbulanceLocation(location);
+    
+    // Clear any existing route when location changes
+    if (selectedHospital) {
+      const route = calculateRoute(location, selectedHospital.id);
+      setCurrentRoute(route);
+      setRouteStatus({
+        status: 'info',
+        message: `Route updated from ${locationName || 'emergency location'}`,
+        details: `${route.distance.toFixed(1)} km - Estimated ${Math.ceil(route.duration)} minutes`,
+      });
+    }
+  };
 
   // Handle hospital selection
   const handleHospitalSelect = (hospital: any) => {
     selectHospital(hospital);
     
-    // Calculate and set the route
-    const route = calculateRoute(ambulanceLocation, hospital.id);
+    // Calculate and set the route from emergency location
+    const route = calculateRoute(emergencyLocation, hospital.id);
     setCurrentRoute(route);
     
     // Update route status
@@ -128,6 +157,11 @@ const DriverDashboard: React.FC = () => {
           {/* Emergency toggle */}
           <EmergencyToggle className="mb-6" />
 
+          {/* Emergency Location Selector */}
+          <LocationSelector
+            onLocationChange={handleEmergencyLocationChange}
+          />
+
           {/* Patient information */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
@@ -155,13 +189,21 @@ const DriverDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Current location */}
+          {/* Current ambulance location */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
               <MapPin className="mr-2" size={18} />
-              Current Location
+              Ambulance Location
             </h2>
             <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Type:</span>
+                <span className="font-medium capitalize">{emergencyLocationType} Location</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Location:</span>
+                <span className="font-medium text-sm">{emergencyLocationName}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Latitude:</span>
                 <span className="font-medium">{ambulanceLocation[0].toFixed(6)}</span>
@@ -180,7 +222,7 @@ const DriverDashboard: React.FC = () => {
           {/* Hospital selection with search */}
           <HospitalSelect
             hospitals={hospitals}
-            currentLocation={ambulanceLocation}
+            currentLocation={emergencyLocation}
             onSelect={handleHospitalSelect}
             onSearchLocationChange={handleSearchLocationChange}
           />
