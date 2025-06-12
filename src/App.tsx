@@ -18,51 +18,21 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Add error handler for Google Maps API loading failures
-    const handleGoogleMapsError = (error: any) => {
-      console.error('Google Maps API Error:', error);
-      setApiError('Google Maps API failed to load. Please check your API key configuration.');
-      setIsLoading(false);
-    };
-
-    // Listen for global Google Maps API errors
-    window.addEventListener('error', (event) => {
-      if (event.message && event.message.includes('Google Maps')) {
-        handleGoogleMapsError(event);
-      }
-    });
-
     // Check if API key exists and is not placeholder
     if (!apiKey || apiKey === 'your_google_maps_api_key_here') {
       setIsLoading(false);
       return;
     }
 
-    // Test API key validity by making a simple request
-    const testApiKey = async () => {
-      try {
-        const response = await fetch(
-          `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&callback=__googleMapsCallback`,
-          { method: 'HEAD' }
-        );
-        
-        if (!response.ok) {
-          throw new Error(`API key validation failed: ${response.status}`);
-        }
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error('API key test failed:', error);
-        setApiError(`API key validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        setIsLoading(false);
-      }
-    };
+    // Simple validation - just check if key exists and looks valid
+    if (apiKey.length < 20) {
+      setApiError('Invalid API key format. Please check your Google Maps API key.');
+      setIsLoading(false);
+      return;
+    }
 
-    testApiKey();
-
-    return () => {
-      window.removeEventListener('error', handleGoogleMapsError);
-    };
+    // Let the APIProvider handle the actual API key validation
+    setIsLoading(false);
   }, [apiKey]);
 
   if (isLoading) {
