@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { AppProvider } from './contexts/AppContext';
@@ -14,12 +14,82 @@ import SimulationPage from './pages/SimulationPage';
 
 function App() {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (!apiKey || apiKey === 'your_google_maps_api_key_here') {
+  useEffect(() => {
+    // Add error handler for Google Maps API loading failures
+    const handleGoogleMapsError = (error: any) => {
+      console.error('Google Maps API Error:', error);
+      setApiError('Google Maps API failed to load. Please check your API key configuration.');
+      setIsLoading(false);
+    };
+
+    // Listen for global Google Maps API errors
+    window.addEventListener('error', (event) => {
+      if (event.message && event.message.includes('Google Maps')) {
+        handleGoogleMapsError(event);
+      }
+    });
+
+    // Check if API key exists and is not placeholder
+    if (!apiKey || apiKey === 'your_google_maps_api_key_here') {
+      setIsLoading(false);
+      return;
+    }
+
+    // Test API key validity by making a simple request
+    const testApiKey = async () => {
+      try {
+        const response = await fetch(
+          `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&callback=__googleMapsCallback`,
+          { method: 'HEAD' }
+        );
+        
+        if (!response.ok) {
+          throw new Error(`API key validation failed: ${response.status}`);
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('API key test failed:', error);
+        setApiError(`API key validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setIsLoading(false);
+      }
+    };
+
+    testApiKey();
+
+    return () => {
+      window.removeEventListener('error', handleGoogleMapsError);
+    };
+  }, [apiKey]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading Google Maps...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!apiKey || apiKey === 'your_google_maps_api_key_here' || apiError) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-2xl text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Google Maps API Key Required</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">
+            {apiError ? 'Google Maps API Error' : 'Google Maps API Key Required'}
+          </h1>
+          
+          {apiError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <h2 className="text-lg font-semibold text-red-900 mb-2">Error Details</h2>
+              <p className="text-red-800 text-sm">{apiError}</p>
+            </div>
+          )}
           
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">Quick Setup for Localhost Development</h2>
@@ -138,6 +208,9 @@ function App() {
                 <code className="block bg-gray-800 text-green-400 p-3 rounded text-sm font-mono">
                   VITE_GOOGLE_MAPS_API_KEY=your_actual_api_key_here
                 </code>
+                <p className="text-purple-800 text-xs mt-2">
+                  <strong>Note:</strong> Restart your development server after updating the .env file
+                </p>
               </div>
             </div>
           </div>
@@ -164,6 +237,7 @@ function App() {
               <li>• Development usage typically costs $0</li>
               <li>• You can set up billing alerts to monitor usage</li>
               <li>• Enable all 4 APIs listed above to avoid errors</li>
+              <li>• Restart your dev server after updating .env file</li>
             </ul>
           </div>
           
@@ -181,7 +255,14 @@ function App() {
   }
 
   return (
-    <APIProvider apiKey={apiKey}>
+    <APIProvider 
+      apiKey={apiKey}
+      onLoad={() => console.log('Google Maps API loaded successfully')}
+      onError={(error) => {
+        console.error('Google Maps API Provider Error:', error);
+        setApiError('Google Maps API failed to initialize. Please check your API key and enabled APIs.');
+      }}
+    >
       <AppProvider>
         <Router>
           <Routes>
