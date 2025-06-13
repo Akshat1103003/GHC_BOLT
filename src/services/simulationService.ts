@@ -25,7 +25,7 @@ export const simulateAmbulanceMovement = (
   onLocationUpdate: (location: [number, number]) => void,
   onTrafficSignalUpdate: (id: string, status: EmergencyStatus) => void,
   onComplete: () => void,
-  speedFactor: number = 1 // NEW: Speed multiplier (1 = normal, 2 = 2x faster, 0.5 = half speed)
+  speedFactor: number = 1 // Speed multiplier (1 = normal, 2 = 2x faster, 0.5 = half speed)
 ) => {
   const waypoints = [...route.waypoints];
   let currentWaypointIndex = 0;
@@ -50,6 +50,9 @@ export const simulateAmbulanceMovement = (
   // Set initial position to first waypoint
   onLocationUpdate(waypoints[0]);
   
+  console.log(`🚑 Starting ambulance simulation with ${speedFactor}x speed`);
+  console.log(`📍 Route: ${waypoints.length} waypoints, ${route.distance.toFixed(1)}km total`);
+  
   // Process waypoints one by one with realistic timing
   const processNextWaypoint = async () => {
     if (!isRunning) return;
@@ -58,6 +61,7 @@ export const simulateAmbulanceMovement = (
     
     if (currentWaypointIndex >= waypoints.length) {
       // Route completed - reset all traffic signals
+      console.log('🏥 Ambulance arrived at destination');
       for (const signal of trafficSignals) {
         await updateTrafficSignalStatus(signal.id, EmergencyStatus.PASSED);
         onTrafficSignalUpdate(signal.id, EmergencyStatus.PASSED);
@@ -68,6 +72,8 @@ export const simulateAmbulanceMovement = (
     
     const currentPosition = waypoints[currentWaypointIndex];
     onLocationUpdate(currentPosition);
+    
+    console.log(`🚑 Ambulance moved to waypoint ${currentWaypointIndex}/${waypoints.length - 1}: [${currentPosition[0].toFixed(4)}, ${currentPosition[1].toFixed(4)}]`);
     
     // Update ambulance location in database
     try {
@@ -85,7 +91,7 @@ export const simulateAmbulanceMovement = (
       let newStatus = signalState.status;
       
       if (distance <= 0.1) {
-        // Ambulance is at the traffic signal
+        // Ambulance is at the traffic signal (within 100m)
         newStatus = EmergencyStatus.ACTIVE;
       } else if (distance <= 0.5 && signalState.lastDistance > distance) {
         // Ambulance is approaching (within 500m and getting closer)
@@ -104,6 +110,8 @@ export const simulateAmbulanceMovement = (
       if (newStatus !== signalState.status) {
         signalState.status = newStatus;
         onTrafficSignalUpdate(signal.id, newStatus);
+        
+        console.log(`🚦 Traffic signal ${signal.intersection}: ${newStatus.toUpperCase()} (${distance.toFixed(1)}km away)`);
         
         // Update in database
         try {
@@ -135,9 +143,12 @@ export const simulateAmbulanceMovement = (
       const baseTimeToNextWaypoint = Math.max(2000, Math.min(5000, distance * 2500)); // Between 2.0-5.0 seconds
       const adjustedTime = baseTimeToNextWaypoint / speedFactor; // Apply speed factor
       
+      console.log(`⏱️ Next waypoint in ${(adjustedTime / 1000).toFixed(1)}s (${speedFactor}x speed)`);
+      
       setTimeout(processNextWaypoint, adjustedTime);
     } else {
       // Final waypoint reached
+      console.log('🏥 Ambulance reached final destination');
       try {
         await updateAmbulanceLocation(DEFAULT_AMBULANCE_ID, currentPosition[0], currentPosition[1], 'at_hospital');
       } catch (error) {
@@ -154,7 +165,7 @@ export const simulateAmbulanceMovement = (
   return {
     cancel: () => {
       isRunning = false;
-      console.log('Ambulance movement simulation cancelled');
+      console.log('🛑 Ambulance movement simulation cancelled');
     }
   };
 };
@@ -178,6 +189,9 @@ export const simulateHospitalPreparation = async (
     'Ready for patient arrival'
   ];
   
+  console.log(`🏥 Starting hospital preparation simulation for ${hospitalId}`);
+  console.log(`⏱️ ETA: ${eta} minutes, Patient condition: ${patientCondition}`);
+  
   // Notify hospital initially
   try {
     await notifyHospital(
@@ -197,13 +211,15 @@ export const simulateHospitalPreparation = async (
     currentStep++;
     const progress = Math.min(100, (currentStep / totalSteps) * 100);
     
-    onStatusUpdate(
-      currentStep <= totalSteps ? statusMessages[currentStep - 1] : statusMessages[statusMessages.length - 1],
-      progress
-    );
+    const statusMessage = currentStep <= totalSteps ? statusMessages[currentStep - 1] : statusMessages[statusMessages.length - 1];
+    onStatusUpdate(statusMessage, progress);
+    
+    console.log(`🏥 Hospital preparation: ${statusMessage} (${progress.toFixed(0)}%)`);
     
     if (currentStep < totalSteps) {
       setTimeout(updateStep, stepInterval);
+    } else {
+      console.log('🏥 Hospital preparation complete - ready for patient arrival');
     }
   };
   
@@ -214,7 +230,7 @@ export const simulateHospitalPreparation = async (
   return {
     cancel: () => {
       isRunning = false;
-      console.log('Hospital preparation simulation cancelled');
+      console.log('🛑 Hospital preparation simulation cancelled');
     }
   };
 };

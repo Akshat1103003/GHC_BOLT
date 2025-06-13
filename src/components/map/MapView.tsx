@@ -21,9 +21,9 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
   const [alertingSignals, setAlertingSignals] = useState<Set<string>>(new Set());
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
-  const [routePolyline, setRoutePolyline] = useState<google.maps.Polyline | null>(null);
   const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
   const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
+  const [routePolyline, setRoutePolyline] = useState<google.maps.Polyline | null>(null);
 
   // Initialize Google Maps services
   useEffect(() => {
@@ -33,8 +33,9 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
         suppressMarkers: true, // We'll use our custom markers
         polylineOptions: {
           strokeColor: emergencyActive ? '#DC2626' : '#3B82F6',
-          strokeWeight: emergencyActive ? 6 : 4,
-          strokeOpacity: 0.8,
+          strokeWeight: emergencyActive ? 8 : 5,
+          strokeOpacity: 0.9,
+          strokeDashArray: emergencyActive ? undefined : [10, 5], // Solid line for emergency, dashed for planning
         }
       }));
     }
@@ -47,12 +48,16 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     }
   }, [mapInstance, directionsRenderer]);
 
-  // Create route when hospital is selected
+  // Create and display route when hospital is selected
   useEffect(() => {
     if (!selectedHospital || !directionsService || !directionsRenderer || !mapInstance) {
       // Clear existing route
       if (directionsRenderer) {
         directionsRenderer.setDirections({ routes: [] } as any);
+      }
+      if (routePolyline) {
+        routePolyline.setMap(null);
+        setRoutePolyline(null);
       }
       return;
     }
@@ -69,23 +74,33 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
 
     directionsService.route(request, (result, status) => {
       if (status === google.maps.DirectionsStatus.OK && result) {
-        // Update polyline color based on emergency status
+        // Update polyline style based on emergency status
         directionsRenderer.setOptions({
           polylineOptions: {
             strokeColor: emergencyActive ? '#DC2626' : '#3B82F6',
             strokeWeight: emergencyActive ? 8 : 5,
             strokeOpacity: 0.9,
-            strokeDashArray: emergencyActive ? undefined : [10, 5], // Dashed line when not in emergency
+            strokeDashArray: emergencyActive ? undefined : [10, 5],
           }
         });
         
         directionsRenderer.setDirections(result);
         
-        // Fit map to show entire route
+        // Fit map to show entire route with padding
         const bounds = new google.maps.LatLngBounds();
         bounds.extend({ lat: ambulanceLocation[0], lng: ambulanceLocation[1] });
         bounds.extend({ lat: selectedHospital.coordinates[0], lng: selectedHospital.coordinates[1] });
-        mapInstance.fitBounds(bounds, { padding: 50 });
+        
+        // Add some padding around the route
+        mapInstance.fitBounds(bounds, { 
+          padding: { top: 50, right: 50, bottom: 50, left: 50 }
+        });
+        
+        console.log('Route created successfully:', {
+          distance: result.routes[0].legs[0].distance?.text,
+          duration: result.routes[0].legs[0].duration?.text,
+          emergencyActive
+        });
       } else {
         console.error('Directions request failed:', status);
         // Fallback to simple polyline
@@ -123,7 +138,11 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     // Fit map to show route
     const bounds = new google.maps.LatLngBounds();
     path.forEach(point => bounds.extend(point));
-    mapInstance.fitBounds(bounds, { padding: 50 });
+    mapInstance.fitBounds(bounds, { 
+      padding: { top: 50, right: 50, bottom: 50, left: 50 }
+    });
+
+    console.log('Fallback route created');
   };
 
   // Monitor ambulance proximity to traffic signals
@@ -334,7 +353,9 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
         const bounds = new google.maps.LatLngBounds();
         bounds.extend({ lat: ambulanceLocation[0], lng: ambulanceLocation[1] });
         bounds.extend({ lat: selectedHospital.coordinates[0], lng: selectedHospital.coordinates[1] });
-        mapInstance.fitBounds(bounds, { padding: 100 });
+        mapInstance.fitBounds(bounds, { 
+          padding: { top: 100, right: 100, bottom: 100, left: 100 }
+        });
       } else {
         // Default view centered on ambulance
         mapInstance.setCenter({ lat: ambulanceLocation[0], lng: ambulanceLocation[1] });
@@ -385,8 +406,11 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
           {selectedHospital && (
             <span className="text-blue-600 font-medium flex items-center">
               <Route size={14} className="mr-1" />
-              • Route Active
+              • Route {emergencyActive ? 'Active' : 'Planned'}
             </span>
+          )}
+          {emergencyActive && (
+            <span className="text-red-600 font-medium animate-pulse">• EMERGENCY MODE</span>
           )}
         </div>
         <div className="flex items-center space-x-4 text-xs">
@@ -454,7 +478,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                     Area: {getLocationName(searchLocation)}
                   </p>
                   <p className="text-xs text-blue-600 mt-1">
-                    Hospitals within 200km radius are prioritized
+                    Hospitals within 50km radius are prioritized
                   </p>
                 </div>
               </InfoWindow>
@@ -462,7 +486,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
           </>
         )}
 
-        {/* Ambulance marker with enhanced visibility */}
+        {/* Ambulance marker with enhanced visibility and movement tracking */}
         <Marker
           position={{ lat: ambulanceLocation[0], lng: ambulanceLocation[1] }}
           icon={createSVGMarkerIcon('ambulance')}
@@ -486,7 +510,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
               <p className="text-xs text-gray-500 mt-1">
                 Current Area: {getLocationName(ambulanceLocation)}
               </p>
-              {emergencyActive && <p className="text-red-600 font-bold mt-1">🚨 EMERGENCY ACTIVE</p>}
+              {emergencyActive && <p className="text-red-600 font-bold mt-1 animate-pulse">🚨 EMERGENCY ACTIVE</p>}
               {selectedHospital && (
                 <div className="mt-2 p-2 bg-blue-50 rounded">
                   <p className="text-blue-600 text-sm font-medium">
@@ -495,6 +519,11 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                   <p className="text-xs text-blue-500">
                     Distance: {calculateDistance(ambulanceLocation, selectedHospital.coordinates).toFixed(1)}km
                   </p>
+                  {emergencyActive && (
+                    <p className="text-xs text-red-600 font-medium mt-1">
+                      🚨 En route - Emergency mode active
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -541,11 +570,16 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                   </div>
                   <div className="mt-2 p-2 bg-green-50 rounded">
                     <p className="text-xs text-green-800 font-medium">
-                      🚨 Emergency Route Calculated
+                      🚨 {emergencyActive ? 'Emergency Route Active' : 'Emergency Route Planned'}
                     </p>
                     <p className="text-xs text-green-600">
                       Distance: {calculateDistance(ambulanceLocation, selectedHospital.coordinates).toFixed(1)}km
                     </p>
+                    {emergencyActive && (
+                      <p className="text-xs text-red-600 font-medium mt-1">
+                        🚑 Ambulance en route - ETA updating in real-time
+                      </p>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
                     {getLocationName(selectedHospital.coordinates)}
@@ -615,7 +649,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
               {searchLocation 
                 ? 'Showing hospitals near your searched location'
                 : selectedHospital
-                ? `Route active to ${selectedHospital.name}`
+                ? `${emergencyActive ? 'Emergency route active' : 'Route planned'} to ${selectedHospital.name}`
                 : 'Featuring hospitals and intersections from major cities worldwide'
               }
             </p>
@@ -626,9 +660,10 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
             </p>
             {selectedHospital && (
               <div className="flex items-center justify-end mt-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
-                <span className="text-xs text-blue-600 font-medium">
+                <div className={`w-2 h-2 rounded-full mr-1 ${emergencyActive ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}`}></div>
+                <span className={`text-xs font-medium ${emergencyActive ? 'text-red-600' : 'text-blue-600'}`}>
                   Route: {calculateDistance(ambulanceLocation, selectedHospital.coordinates).toFixed(1)}km
+                  {emergencyActive && ' - ACTIVE'}
                 </span>
               </div>
             )}

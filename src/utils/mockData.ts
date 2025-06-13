@@ -370,6 +370,9 @@ export const calculateRoute = (
     trafficSignalsOnRoute,
   };
 
+  console.log(`🗺️ Route calculated: ${directRoute.distance.toFixed(1)}km, ${Math.ceil(directRoute.duration)} minutes`);
+  console.log(`🚦 Traffic signals on route: ${trafficSignalsOnRoute.length}`);
+
   return directRoute;
 };
 
@@ -404,6 +407,9 @@ const generateOptimalWaypoints = (
   }
   
   waypoints.push(end);
+  
+  console.log(`🗺️ Generated route with ${waypoints.length} waypoints through ${maxWaypoints} traffic signals`);
+  
   return waypoints;
 };
 
@@ -432,17 +438,17 @@ export const calculateDistance = (
   return R * c;
 };
 
-// Enhanced duration calculation for emergency vehicles in global cities (SLOWER SPEED)
+// Enhanced duration calculation for emergency vehicles in global cities
 export const calculateDuration = (
   point1: [number, number],
   point2: [number, number]
 ): number => {
-  // SLOWER: Emergency vehicles globally now average 30-35 km/h with traffic priority
+  // Emergency vehicles globally now average 30-35 km/h with traffic priority
   const distance = calculateDistance(point1, point2);
-  const baseSpeed = 35; // km/h (reduced from 50)
+  const baseSpeed = 35; // km/h
   
   // Add time penalties for traffic density in major cities
-  const cityTrafficPenalty = 1.4; // 40% slower due to dense traffic (increased from 1.2)
+  const cityTrafficPenalty = 1.4; // 40% slower due to dense traffic
   
   return (distance / baseSpeed) * 60 * cityTrafficPenalty; // Convert to minutes
 };
