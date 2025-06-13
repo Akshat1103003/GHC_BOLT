@@ -21,6 +21,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
   const [searchSuggestions, setSearchSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedLocationName, setSelectedLocationName] = useState<string>('');
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Initialize Google Maps services
   const geocodingLibrary = useMapsLibrary('geocoding');
@@ -66,6 +67,11 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
           if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
             setSearchSuggestions(predictions);
             setShowSuggestions(true);
+            setApiError(null);
+          } else if (status === google.maps.places.PlacesServiceStatus.REQUEST_DENIED) {
+            setApiError('Places API access denied. Please check that Places API (New) is enabled in Google Cloud Console.');
+            setSearchSuggestions([]);
+            setShowSuggestions(false);
           } else {
             setSearchSuggestions([]);
             setShowSuggestions(false);
@@ -143,12 +149,19 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
         const coordinates: [number, number] = [location.lat(), location.lng()];
         setSelectedLocation(coordinates);
         setSelectedLocationName(description);
+        setApiError(null);
       } else {
         setLocationError('Location not found');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Geocoding by place ID error:', error);
-      setLocationError('Failed to get location coordinates');
+      
+      if (error.code === 'GEOCODER_GEOCODE' && error.message && error.message.includes('REQUEST_DENIED')) {
+        setLocationError('Geocoding API access denied. Please check that Geocoding API is enabled.');
+        setApiError('Geocoding API not properly configured. Please enable the Geocoding API in Google Cloud Console.');
+      } else {
+        setLocationError('Failed to get location coordinates');
+      }
     } finally {
       setIsGeocoding(false);
     }
@@ -163,6 +176,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
   const handleLocationTypeChange = (type: 'current' | 'selected') => {
     setLocationType(type);
     setLocationError(null);
+    setApiError(null);
     
     if (type === 'current' && !currentLocation) {
       getCurrentLocation();
@@ -191,6 +205,19 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
         Emergency Location
       </h3>
 
+      {/* API Error Alert */}
+      {apiError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+          <div className="flex items-center text-sm text-red-800">
+            <AlertCircle size={16} className="mr-2 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Google Maps API Configuration Error</p>
+              <p className="text-xs mt-1">{apiError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Location Type Toggle */}
       <div className="mb-4">
         <div className="flex rounded-lg border border-gray-300 overflow-hidden">
@@ -214,6 +241,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
                 ? 'bg-blue-600 text-white'
                 : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
+            disabled={!!apiError}
           >
             <div className="flex items-center justify-center">
               <Search size={16} className="mr-2" />
@@ -272,13 +300,14 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => setShowSuggestions(searchSuggestions.length > 0)}
               className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={!!apiError}
             />
             {isGeocoding && (
               <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-500 animate-spin" size={18} />
             )}
             
             {/* Search suggestions dropdown */}
-            {showSuggestions && searchSuggestions.length > 0 && (
+            {showSuggestions && searchSuggestions.length > 0 && !apiError && (
               <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto mt-1">
                 {searchSuggestions.map((suggestion, index) => (
                   <button
@@ -346,6 +375,11 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
             {locationType === 'current' ? 'Using GPS' : 'Using Search'}
           </span>
         </div>
+        {apiError && (
+          <div className="mt-2 text-xs text-red-600">
+            Some features may be limited due to API configuration issues.
+          </div>
+        )}
       </div>
     </div>
   );

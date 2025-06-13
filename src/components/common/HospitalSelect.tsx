@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Phone, CheckCircle, XCircle, Navigation, Clock, Globe, Loader2, Target } from 'lucide-react';
+import { Search, MapPin, Phone, CheckCircle, XCircle, Navigation, Clock, Globe, Loader2, Target, AlertCircle } from 'lucide-react';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Hospital } from '../../types';
 import { calculateDistance, calculateDuration } from '../../utils/mockData';
@@ -27,6 +27,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   const [geocodingError, setGeocodingError] = useState<string | null>(null);
   const [searchSuggestions, setSearchSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const { selectedHospital } = useAppContext();
 
   // Initialize Google Maps services
@@ -79,9 +80,14 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             }
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error detecting city:', error);
         setDetectedCity(null);
+        
+        // Check for specific API errors
+        if (error.code === 'GEOCODER_GEOCODE') {
+          setApiError('Geocoding API not properly enabled. Please enable the Geocoding API in Google Cloud Console.');
+        }
       }
     };
 
@@ -114,6 +120,11 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
             setSearchSuggestions(predictions);
             setShowSuggestions(true);
+            setApiError(null);
+          } else if (status === google.maps.places.PlacesServiceStatus.REQUEST_DENIED) {
+            setApiError('Places API access denied. Please check that Places API (New) is enabled in Google Cloud Console.');
+            setSearchSuggestions([]);
+            setShowSuggestions(false);
           } else {
             // Fallback: search for establishments with "hospital" in the query
             autocompleteService.getPlacePredictions(
@@ -139,6 +150,11 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                   );
                   setSearchSuggestions(hospitalPredictions);
                   setShowSuggestions(hospitalPredictions.length > 0);
+                  setApiError(null);
+                } else if (fallbackStatus === google.maps.places.PlacesServiceStatus.REQUEST_DENIED) {
+                  setApiError('Places API access denied. Please check that Places API (New) is enabled in Google Cloud Console.');
+                  setSearchSuggestions([]);
+                  setShowSuggestions(false);
                 } else {
                   setSearchSuggestions([]);
                   setShowSuggestions(false);
@@ -189,15 +205,29 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           onSearchLocationChange(coordinates);
         }
       } else {
-        setGeocodingError('Location not found');
+        setGeocodingError('Location not found. Try a more specific search term.');
         setGeocodedSearchLocation(null);
         if (onSearchLocationChange) {
           onSearchLocationChange(null);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Geocoding error:', error);
-      setGeocodingError('Failed to search location');
+      
+      // Handle specific geocoding errors
+      if (error.code === 'GEOCODER_GEOCODE') {
+        if (error.message && error.message.includes('ZERO_RESULTS')) {
+          setGeocodingError('No results found for this location. Try a different search term.');
+        } else if (error.message && error.message.includes('REQUEST_DENIED')) {
+          setGeocodingError('Geocoding API access denied. Please check that Geocoding API is enabled in Google Cloud Console.');
+          setApiError('Geocoding API not properly configured. Please enable the Geocoding API.');
+        } else {
+          setGeocodingError('Unable to find location. Please try a different search term.');
+        }
+      } else {
+        setGeocodingError('Failed to search location. Please check your internet connection.');
+      }
+      
       setGeocodedSearchLocation(null);
       if (onSearchLocationChange) {
         onSearchLocationChange(null);
@@ -230,9 +260,16 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           onSearchLocationChange(null);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Geocoding by place ID error:', error);
-      setGeocodingError('Failed to search location');
+      
+      if (error.code === 'GEOCODER_GEOCODE' && error.message && error.message.includes('REQUEST_DENIED')) {
+        setGeocodingError('Geocoding API access denied. Please check that Geocoding API is enabled.');
+        setApiError('Geocoding API not properly configured.');
+      } else {
+        setGeocodingError('Failed to get location coordinates');
+      }
+      
       setGeocodedSearchLocation(null);
       if (onSearchLocationChange) {
         onSearchLocationChange(null);
@@ -328,6 +365,23 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           <Globe className="mr-2" size={20} />
           Find Hospitals {detectedCity && `in ${detectedCity}`}
         </h2>
+        
+        {/* API Error Alert */}
+        {apiError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <div className="flex items-center text-sm text-red-800">
+              <AlertCircle size={16} className="mr-2 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Google Maps API Configuration Error</p>
+                <p className="text-xs mt-1">{apiError}</p>
+                <p className="text-xs mt-1">
+                  Please check the setup instructions and ensure all required APIs are enabled.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
           <input
@@ -340,13 +394,14 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             onChange={(e) => setSearchTerm(e.target.value)}
             onFocus={() => setShowSuggestions(searchSuggestions.length > 0)}
             className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={!!apiError}
           />
           {isGeocoding && (
             <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-500 animate-spin" size={18} />
           )}
           
           {/* Search suggestions dropdown - HOSPITAL FOCUSED */}
-          {showSuggestions && searchSuggestions.length > 0 && (
+          {showSuggestions && searchSuggestions.length > 0 && !apiError && (
             <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
               {searchSuggestions.map((suggestion, index) => (
                 <button
@@ -412,7 +467,16 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
       <div className="flex-1 min-h-0 overflow-y-auto">
         {sortedHospitals.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
-            {searchTerm ? 'No hospitals found matching your search. Try a different search term.' : 'Start typing to search for hospitals.'}
+            {apiError ? (
+              <div>
+                <p>Hospital search is currently unavailable.</p>
+                <p className="text-xs mt-1">Please check your Google Maps API configuration.</p>
+              </div>
+            ) : searchTerm ? (
+              'No hospitals found matching your search. Try a different search term.'
+            ) : (
+              'Start typing to search for hospitals.'
+            )}
           </div>
         ) : (
           <ul className="divide-y divide-gray-200">
@@ -530,6 +594,11 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           {geocodedSearchLocation && (
             <span className="block mt-1 text-green-600">
               📍 Searching within 200km radius of your location
+            </span>
+          )}
+          {apiError && (
+            <span className="block mt-1 text-red-600">
+              ⚠️ API configuration required for full functionality
             </span>
           )}
         </p>
