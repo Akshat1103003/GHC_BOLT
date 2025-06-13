@@ -14,6 +14,7 @@ import { simulateAmbulanceMovement } from '../services/simulationService';
 const DriverDashboard: React.FC = () => {
   const {
     emergencyActive,
+    toggleEmergency,
     ambulanceLocation,
     updateAmbulanceLocation,
     selectedHospital,
@@ -84,10 +85,36 @@ const DriverDashboard: React.FC = () => {
       message: `Route to ${hospital.name} created`,
       details: `${route.distance.toFixed(1)} km - Estimated ${Math.ceil(route.duration)} minutes`,
     });
-    
-    // Start simulation if emergency is active
-    if (emergencyActive && simulation === null) {
-      startSimulation(route);
+  };
+
+  // Handle hospital confirmation and start emergency route
+  const handleHospitalConfirm = async (hospital: any) => {
+    try {
+      // Activate emergency mode if not already active
+      if (!emergencyActive) {
+        toggleEmergency();
+      }
+
+      // Calculate and set the route from emergency location
+      const route = calculateRoute(emergencyLocation, hospital.id);
+      setCurrentRoute(route);
+      
+      // Update route status to active
+      setRouteStatus({
+        status: 'warning',
+        message: `Emergency route to ${hospital.name} activated`,
+        details: `${route.distance.toFixed(1)} km - Emergency mode active`,
+      });
+
+      // Start simulation if not already running
+      if (simulation === null) {
+        startSimulation(route);
+      }
+
+      console.log(`Emergency route confirmed to ${hospital.name}`);
+    } catch (error) {
+      console.error('Error confirming hospital route:', error);
+      throw error; // Re-throw to let the component handle the error
     }
   };
 
@@ -219,11 +246,12 @@ const DriverDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Hospital selection with search */}
+          {/* Hospital selection with search and confirmation */}
           <HospitalSelect
             hospitals={hospitals}
             currentLocation={emergencyLocation}
             onSelect={handleHospitalSelect}
+            onConfirm={handleHospitalConfirm}
             onSearchLocationChange={handleSearchLocationChange}
           />
         </div>

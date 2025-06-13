@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Phone, CheckCircle, XCircle, Navigation, Clock, Globe, Loader2, Target, AlertCircle } from 'lucide-react';
+import { Search, MapPin, Phone, CheckCircle, XCircle, Navigation, Clock, Globe, Loader2, Target, AlertCircle, Check } from 'lucide-react';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Hospital } from '../../types';
 import { calculateDistance, calculateDuration } from '../../utils/mockData';
@@ -9,6 +9,7 @@ interface HospitalSelectProps {
   hospitals: Hospital[];
   currentLocation: [number, number];
   onSelect: (hospital: Hospital) => void;
+  onConfirm?: (hospital: Hospital) => void;
   onSearchLocationChange?: (location: [number, number] | null) => void;
   className?: string;
 }
@@ -17,6 +18,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   hospitals,
   currentLocation,
   onSelect,
+  onConfirm,
   onSearchLocationChange,
   className = '',
 }) => {
@@ -30,7 +32,8 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   const [apiError, setApiError] = useState<string | null>(null);
   const [nearbyHospitals, setNearbyHospitals] = useState<any[]>([]);
   const [isLoadingNearby, setIsLoadingNearby] = useState(false);
-  const { selectedHospital } = useAppContext();
+  const [isConfirming, setIsConfirming] = useState(false);
+  const { selectedHospital, emergencyActive } = useAppContext();
 
   // Initialize Google Maps services
   const geocodingLibrary = useMapsLibrary('geocoding');
@@ -366,6 +369,56 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     performGeocodingByPlaceId(suggestion.place_id);
   };
 
+  // Handle hospital confirmation
+  const handleConfirmHospital = async () => {
+    if (!selectedHospital) return;
+
+    setIsConfirming(true);
+    
+    try {
+      // Show confirmation dialog
+      const confirmed = window.confirm(
+        `Confirm emergency route to ${selectedHospital.name}?\n\n` +
+        `Hospital: ${selectedHospital.name}\n` +
+        `Address: ${selectedHospital.address}\n` +
+        `Distance: ${calculateDistance(currentLocation, selectedHospital.coordinates).toFixed(1)} km\n` +
+        `Estimated Time: ${Math.ceil(calculateDuration(currentLocation, selectedHospital.coordinates))} minutes\n\n` +
+        `This will activate emergency mode and start the ambulance route.`
+      );
+
+      if (confirmed && onConfirm) {
+        await onConfirm(selectedHospital);
+        
+        // Show success notification
+        const successDiv = document.createElement('div');
+        successDiv.className = 'fixed top-4 right-4 bg-green-600 text-white p-4 rounded-lg shadow-lg z-50 animate-pulse';
+        successDiv.innerHTML = `
+          <div class="flex items-center">
+            <div class="mr-2">✅</div>
+            <div>
+              <div class="font-bold">Emergency Route Confirmed!</div>
+              <div class="text-sm">Ambulance en route to ${selectedHospital.name}</div>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(successDiv);
+        
+        // Remove notification after 5 seconds
+        setTimeout(() => {
+          if (document.body.contains(successDiv)) {
+            document.body.removeChild(successDiv);
+          }
+        }, 5000);
+      }
+    } catch (error) {
+      console.error('Error confirming hospital:', error);
+      alert('Failed to confirm hospital selection. Please try again.');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
   // Combine static hospitals with nearby hospitals from Places API, prioritizing within 50km
   const allHospitals = [...hospitals, ...nearbyHospitals];
   
@@ -454,11 +507,42 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   return (
     <div className={`bg-white rounded-lg shadow-md flex flex-col ${className}`}>
       <div className="p-4 border-b flex-shrink-0">
-        <h2 className="text-xl font-semibold text-gray-800 mb-2 flex items-center">
-          <Globe className="mr-2" size={20} />
-          Find Hospitals {detectedCity && `in ${detectedCity}`}
-          <span className="ml-2 text-sm font-normal text-blue-600">(50km radius)</span>
-        </h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+            <Globe className="mr-2" size={20} />
+            Find Hospitals {detectedCity && `in ${detectedCity}`}
+            <span className="ml-2 text-sm font-normal text-blue-600">(50km radius)</span>
+          </h2>
+          
+          {/* Confirmation Button */}
+          {selectedHospital && (
+            <button
+              onClick={handleConfirmHospital}
+              disabled={isConfirming || !selectedHospital}
+              className={`
+                flex items-center px-4 py-2 rounded-lg font-medium text-sm
+                transition-all duration-200 shadow-md hover:shadow-lg
+                ${emergencyActive 
+                  ? 'bg-green-600 hover:bg-green-700 text-white' 
+                  : 'bg-red-600 hover:bg-red-700 text-white'
+                }
+                disabled:opacity-50 disabled:cursor-not-allowed
+              `}
+            >
+              {isConfirming ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Confirming...
+                </>
+              ) : (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  {emergencyActive ? 'Update Route' : 'Confirm & Start'}
+                </>
+              )}
+            </button>
+          )}
+        </div>
         
         {/* API Error Alert */}
         {apiError && (
@@ -554,6 +638,24 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             <div className="flex items-center text-sm text-red-800">
               <XCircle size={14} className="mr-1" />
               <span>{geocodingError}</span>
+            </div>
+          </div>
+        )}
+        
+        {/* Hospital confirmation status */}
+        {selectedHospital && (
+          <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+            <div className="flex items-center justify-between text-sm text-amber-800">
+              <div className="flex items-center">
+                <AlertCircle size={14} className="mr-1" />
+                <span>
+                  <strong>{selectedHospital.name}</strong> selected
+                  {emergencyActive ? ' - Route active' : ' - Click confirm to start emergency route'}
+                </span>
+              </div>
+              <div className="text-xs">
+                {calculateDistance(currentLocation, selectedHospital.coordinates).toFixed(1)}km away
+              </div>
             </div>
           </div>
         )}
@@ -686,10 +788,13 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                   {isSelected && (
                     <div className="mt-3 p-2 bg-blue-50 rounded border-l-2 border-blue-200">
                       <p className="text-xs text-blue-800 font-medium">
-                        🚨 Emergency Route Active
+                        🚨 {emergencyActive ? 'Emergency Route Active' : 'Ready to Confirm Emergency Route'}
                       </p>
                       <p className="text-xs text-blue-600 mt-1">
-                        Route optimized for emergency response • Real-time signal coordination
+                        {emergencyActive 
+                          ? 'Route optimized for emergency response • Real-time signal coordination'
+                          : 'Click "Confirm & Start" to activate emergency mode and begin route'
+                        }
                       </p>
                     </div>
                   )}
@@ -717,6 +822,11 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           {nearbyHospitals.length > 0 && (
             <span className="block mt-1 text-purple-600">
               🔍 {nearbyHospitals.length} real-time results from Google Places API
+            </span>
+          )}
+          {selectedHospital && !emergencyActive && (
+            <span className="block mt-1 text-amber-600 font-medium">
+              ⚠️ Hospital selected - Click "Confirm & Start" to begin emergency route
             </span>
           )}
           {apiError && (
