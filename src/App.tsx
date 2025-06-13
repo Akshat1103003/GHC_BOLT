@@ -35,6 +35,11 @@ function App() {
     setIsLoading(false);
   }, [apiKey]);
 
+  const handleGoogleMapsError = (error: any) => {
+    console.error('Google Maps API Provider Error:', error);
+    setApiError('Google Maps API failed to initialize. Please check your API key and enabled APIs.');
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -228,10 +233,7 @@ function App() {
     <APIProvider 
       apiKey={apiKey}
       onLoad={() => console.log('Google Maps API loaded successfully')}
-      onError={(error) => {
-        console.error('Google Maps API Provider Error:', error);
-        setApiError('Google Maps API failed to initialize. Please check your API key and enabled APIs.');
-      }}
+      onError={handleGoogleMapsError}
     >
       <AppProvider>
         <Router>
