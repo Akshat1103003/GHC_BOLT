@@ -241,84 +241,16 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     return () => clearTimeout(timeoutId);
   }, [searchTerm, autocompleteService, currentLocation]);
 
-  // Geocode search term when it changes
+  // Clear search location when search term is cleared
   useEffect(() => {
-    if (!geocoder || !searchTerm.trim()) {
+    if (!searchTerm.trim()) {
       setGeocodedSearchLocation(null);
       setGeocodingError(null);
       if (onSearchLocationChange) {
         onSearchLocationChange(null);
       }
-      return;
     }
-
-    // Debounce geocoding requests
-    const timeoutId = setTimeout(() => {
-      performGeocoding(searchTerm.trim());
-    }, 800);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, geocoder]);
-
-  const performGeocoding = async (query: string) => {
-    if (!geocoder) return;
-
-    // Validate query before making API call
-    if (!query || query.trim().length === 0) {
-      setGeocodedSearchLocation(null);
-      setGeocodingError(null);
-      setIsGeocoding(false);
-      if (onSearchLocationChange) {
-        onSearchLocationChange(null);
-      }
-      return;
-    }
-
-    setIsGeocoding(true);
-    setGeocodingError(null);
-
-    try {
-      const response = await geocoder.geocode({ address: query });
-      
-      if (response.results && response.results.length > 0) {
-        const location = response.results[0].geometry.location;
-        const coordinates: [number, number] = [location.lat(), location.lng()];
-        setGeocodedSearchLocation(coordinates);
-        if (onSearchLocationChange) {
-          onSearchLocationChange(coordinates);
-        }
-      } else {
-        setGeocodingError('Location not found. Try a more specific search term.');
-        setGeocodedSearchLocation(null);
-        if (onSearchLocationChange) {
-          onSearchLocationChange(null);
-        }
-      }
-    } catch (error: any) {
-      console.error('Geocoding error:', error);
-      
-      // Handle specific geocoding errors
-      if (error.code === 'GEOCODER_GEOCODE') {
-        if (error.message && error.message.includes('ZERO_RESULTS')) {
-          setGeocodingError('No results found for this location. Try a different search term.');
-        } else if (error.message && error.message.includes('REQUEST_DENIED')) {
-          setGeocodingError('Geocoding API access denied. Please check that Geocoding API is enabled in Google Cloud Console.');
-          setApiError('Geocoding API not properly configured. Please enable the Geocoding API.');
-        } else {
-          setGeocodingError('Unable to find location. Please try a different search term.');
-        }
-      } else {
-        setGeocodingError('Failed to search location. Please check your internet connection.');
-      }
-      
-      setGeocodedSearchLocation(null);
-      if (onSearchLocationChange) {
-        onSearchLocationChange(null);
-      }
-    } finally {
-      setIsGeocoding(false);
-    }
-  };
+  }, [searchTerm, onSearchLocationChange]);
 
   const performGeocodingByPlaceId = async (placeId: string) => {
     if (!geocoder) return;
