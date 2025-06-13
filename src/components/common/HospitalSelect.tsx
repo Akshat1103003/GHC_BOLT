@@ -260,6 +260,17 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   const performGeocoding = async (query: string) => {
     if (!geocoder) return;
 
+    // Validate query before making API call
+    if (!query || query.trim().length === 0) {
+      setGeocodedSearchLocation(null);
+      setGeocodingError(null);
+      setIsGeocoding(false);
+      if (onSearchLocationChange) {
+        onSearchLocationChange(null);
+      }
+      return;
+    }
+
     setIsGeocoding(true);
     setGeocodingError(null);
 
