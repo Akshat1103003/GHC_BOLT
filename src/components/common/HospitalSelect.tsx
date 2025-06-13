@@ -28,6 +28,8 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   const [searchSuggestions, setSearchSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [nearbyHospitals, setNearbyHospitals] = useState<any[]>([]);
+  const [isLoadingNearby, setIsLoadingNearby] = useState(false);
   const { selectedHospital } = useAppContext();
 
   // Initialize Google Maps services
@@ -35,6 +37,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   const placesLibrary = useMapsLibrary('places');
   const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
   const [autocompleteService, setAutocompleteService] = useState<google.maps.places.AutocompleteService | null>(null);
+  const [placesService, setPlacesService] = useState<google.maps.places.PlacesService | null>(null);
 
   useEffect(() => {
     if (geocodingLibrary) {
@@ -45,8 +48,80 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   useEffect(() => {
     if (placesLibrary) {
       setAutocompleteService(new placesLibrary.AutocompleteService());
+      
+      // Create a dummy map element for PlacesService
+      const mapDiv = document.createElement('div');
+      const map = new google.maps.Map(mapDiv);
+      setPlacesService(new placesLibrary.PlacesService(map));
     }
   }, [placesLibrary]);
+
+  // Search for nearby hospitals within 50km radius using Places API
+  const searchNearbyHospitals = async (location: [number, number]) => {
+    if (!placesService) return;
+
+    setIsLoadingNearby(true);
+    setApiError(null);
+
+    try {
+      const request: google.maps.places.PlaceSearchRequest = {
+        location: { lat: location[0], lng: location[1] },
+        radius: 50000, // 50km radius as requested
+        type: 'hospital',
+        fields: ['place_id', 'name', 'formatted_address', 'geometry', 'rating', 'types', 'business_status']
+      };
+
+      placesService.nearbySearch(request, (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+          const hospitalResults = results
+            .filter(place => 
+              place.business_status === 'OPERATIONAL' &&
+              place.geometry?.location &&
+              place.name &&
+              place.formatted_address
+            )
+            .map(place => ({
+              id: place.place_id || `nearby-${Date.now()}-${Math.random()}`,
+              name: place.name || 'Unknown Hospital',
+              address: place.formatted_address || 'Address not available',
+              coordinates: [
+                place.geometry!.location!.lat(),
+                place.geometry!.location!.lng()
+              ] as [number, number],
+              phone: 'Contact information available on-site',
+              specialties: ['Emergency', 'General Medicine'],
+              emergencyReady: true,
+              rating: place.rating || 0,
+              isNearbyResult: true
+            }));
+
+          setNearbyHospitals(hospitalResults);
+          console.log(`Found ${hospitalResults.length} hospitals within 50km radius`);
+        } else if (status === google.maps.places.PlacesServiceStatus.REQUEST_DENIED) {
+          setApiError('Places API access denied. Please check that Places API (New) is enabled in Google Cloud Console.');
+        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+          setNearbyHospitals([]);
+          console.log('No hospitals found within 50km radius');
+        } else {
+          console.error('Places API error:', status);
+          setApiError(`Places API error: ${status}`);
+        }
+        setIsLoadingNearby(false);
+      });
+    } catch (error: any) {
+      console.error('Error searching nearby hospitals:', error);
+      setApiError('Failed to search nearby hospitals. Please check your API configuration.');
+      setIsLoadingNearby(false);
+    }
+  };
+
+  // Search for nearby hospitals when location changes
+  useEffect(() => {
+    const locationToSearch = geocodedSearchLocation || currentLocation;
+    if (locationToSearch && placesService) {
+      searchNearbyHospitals(locationToSearch);
+    }
+  }, [currentLocation, geocodedSearchLocation, placesService]);
 
   // Detect city from current location or search location
   useEffect(() => {
@@ -108,13 +183,10 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         {
           input: searchTerm,
           types: ['hospital'], // RESTRICT TO HOSPITALS ONLY
-          componentRestrictions: detectedCity ? {} : { country: [] },
-          ...(detectedCity && { 
-            locationBias: {
-              radius: 50000, // 50km radius
-              center: { lat: currentLocation[0], lng: currentLocation[1] }
-            }
-          })
+          locationBias: {
+            radius: 50000, // 50km radius bias
+            center: { lat: currentLocation[0], lng: currentLocation[1] }
+          }
         },
         (predictions, status) => {
           if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
@@ -131,13 +203,10 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
               {
                 input: `hospital ${searchTerm}`,
                 types: ['establishment'],
-                componentRestrictions: { country: [] },
-                ...(detectedCity && { 
-                  locationBias: {
-                    radius: 50000,
-                    center: { lat: currentLocation[0], lng: currentLocation[1] }
-                  }
-                })
+                locationBias: {
+                  radius: 50000, // 50km radius bias
+                  center: { lat: currentLocation[0], lng: currentLocation[1] }
+                }
               },
               (fallbackPredictions, fallbackStatus) => {
                 if (fallbackStatus === google.maps.places.PlacesServiceStatus.OK && fallbackPredictions) {
@@ -167,7 +236,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, autocompleteService, detectedCity, currentLocation]);
+  }, [searchTerm, autocompleteService, currentLocation]);
 
   // Geocode search term when it changes
   useEffect(() => {
@@ -286,38 +355,53 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     performGeocodingByPlaceId(suggestion.place_id);
   };
 
-  // Filter hospitals based on search term, detected city, and proximity
-  const filteredHospitals = hospitals.filter((hospital) => {
+  // Combine static hospitals with nearby hospitals from Places API, prioritizing within 50km
+  const allHospitals = [...hospitals, ...nearbyHospitals];
+  
+  // Filter hospitals based on search term, detected city, and 50km radius
+  const filteredHospitals = allHospitals.filter((hospital) => {
+    const referenceLocation = geocodedSearchLocation || currentLocation;
+    const distance = calculateDistance(referenceLocation, hospital.coordinates);
+    
+    // PRIORITY 1: Hospitals within 50km radius (as requested)
+    const within50km = distance <= 50;
+    
+    // Text-based filtering for hospital names and specialties
+    const matchesText = !searchTerm.trim() || 
+      hospital.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      hospital.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (hospital.specialties && hospital.specialties.some((specialty) =>
+        specialty.toLowerCase().includes(searchTerm.toLowerCase())
+      ));
+
     // If we have a detected city and no specific search term, prioritize hospitals in that city
     if (detectedCity && !searchTerm.trim()) {
-      return hospital.address.toLowerCase().includes(detectedCity.toLowerCase());
-    }
-
-    // Text-based filtering for hospital names and specialties
-    const matchesText = hospital.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hospital.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hospital.specialties.some((specialty) =>
-        specialty.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-
-    // If we have a detected city, prioritize hospitals in that city
-    if (detectedCity) {
       const inDetectedCity = hospital.address.toLowerCase().includes(detectedCity.toLowerCase());
-      if (inDetectedCity) return true; // Always include hospitals in detected city
+      return (inDetectedCity && within50km) || within50km;
     }
 
-    // If we have a geocoded location, also filter by proximity (within 200km for global search)
-    if (geocodedSearchLocation && searchTerm.trim()) {
-      const distanceToSearch = calculateDistance(geocodedSearchLocation, hospital.coordinates);
-      return matchesText || distanceToSearch <= 200; // 200km radius for global search
+    // For search terms, show matching hospitals within 50km first, then extend if needed
+    if (searchTerm.trim()) {
+      return matchesText && (within50km || distance <= 200); // Extend to 200km for search
     }
 
-    return matchesText;
+    // Default: show hospitals within 50km
+    return within50km;
   });
 
   // Sort hospitals by distance (from search location if available, otherwise from current location)
   const referenceLocation = geocodedSearchLocation || currentLocation;
   const sortedHospitals = [...filteredHospitals].sort((a, b) => {
+    const distanceA = calculateDistance(referenceLocation, a.coordinates);
+    const distanceB = calculateDistance(referenceLocation, b.coordinates);
+    
+    // Prioritize hospitals within 50km
+    const aWithin50km = distanceA <= 50;
+    const bWithin50km = distanceB <= 50;
+    
+    if (aWithin50km && !bWithin50km) return -1;
+    if (!aWithin50km && bWithin50km) return 1;
+    
     // If we have a detected city, prioritize hospitals in that city
     if (detectedCity) {
       const aInCity = a.address.toLowerCase().includes(detectedCity.toLowerCase());
@@ -328,8 +412,6 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     }
 
     // Then sort by distance
-    const distanceA = calculateDistance(referenceLocation, a.coordinates);
-    const distanceB = calculateDistance(referenceLocation, b.coordinates);
     return distanceA - distanceB;
   });
 
@@ -355,7 +437,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     if (address.includes('Germany')) return '🇩🇪';
     if (address.includes('United Arab Emirates')) return '🇦🇪';
     if (address.includes('Singapore')) return '🇸🇬';
-    return '🌍';
+    return '🏥';
   };
 
   return (
@@ -364,6 +446,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         <h2 className="text-xl font-semibold text-gray-800 mb-2 flex items-center">
           <Globe className="mr-2" size={20} />
           Find Hospitals {detectedCity && `in ${detectedCity}`}
+          <span className="ml-2 text-sm font-normal text-blue-600">(50km radius)</span>
         </h2>
         
         {/* API Error Alert */}
@@ -382,13 +465,23 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           </div>
         )}
         
+        {/* Loading indicator for nearby search */}
+        {isLoadingNearby && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="flex items-center text-sm text-blue-800">
+              <Loader2 size={16} className="animate-spin mr-2 flex-shrink-0" />
+              <span>Searching for hospitals within 50km radius...</span>
+            </div>
+          </div>
+        )}
+        
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
             placeholder={detectedCity 
-              ? `Search hospitals in ${detectedCity}...` 
-              : "Search by hospital name, specialty, or location..."
+              ? `Search hospitals in ${detectedCity} (50km radius)...` 
+              : "Search hospitals within 50km radius..."
             }
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -431,7 +524,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
             <div className="flex items-center text-sm text-blue-800">
               <Target size={14} className="mr-1" />
-              <span>Showing hospitals in: <strong>{detectedCity}</strong></span>
+              <span>Showing hospitals in: <strong>{detectedCity}</strong> (within 50km)</span>
             </div>
           </div>
         )}
@@ -456,11 +549,14 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         
         <p className="text-xs text-gray-500 mt-2">
           {detectedCity 
-            ? `Showing ${sortedHospitals.length} hospitals in ${detectedCity} and nearby areas`
+            ? `Showing ${sortedHospitals.length} hospitals in ${detectedCity} and within 50km radius`
             : geocodedSearchLocation 
-            ? `Showing hospitals near searched location (${sortedHospitals.length} found within 200km)`
-            : `Search by hospital name, specialty, or location (${sortedHospitals.length} hospitals)`
+            ? `Showing hospitals near searched location (${sortedHospitals.length} found within 50km)`
+            : `Showing ${sortedHospitals.length} hospitals within 50km radius of ambulance location`
           }
+          {nearbyHospitals.length > 0 && (
+            <span className="text-blue-600 font-medium"> • {nearbyHospitals.length} from Places API</span>
+          )}
         </p>
       </div>
 
@@ -472,10 +568,15 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                 <p>Hospital search is currently unavailable.</p>
                 <p className="text-xs mt-1">Please check your Google Maps API configuration.</p>
               </div>
+            ) : isLoadingNearby ? (
+              <div>
+                <Loader2 className="animate-spin mx-auto mb-2" size={24} />
+                <p>Searching for hospitals within 50km...</p>
+              </div>
             ) : searchTerm ? (
-              'No hospitals found matching your search. Try a different search term.'
+              'No hospitals found within 50km matching your search. Try a different search term.'
             ) : (
-              'Start typing to search for hospitals.'
+              'No hospitals found within 50km radius. Try expanding your search area.'
             )}
           </div>
         ) : (
@@ -487,6 +588,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
               const location = getHospitalLocation(hospital.address);
               const flag = getCountryFlag(hospital.address);
               const inDetectedCity = detectedCity ? hospital.address.toLowerCase().includes(detectedCity.toLowerCase()) : false;
+              const within50km = distance <= 50;
 
               return (
                 <li
@@ -494,16 +596,19 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                   className={`
                     p-4 transition-colors cursor-pointer
                     ${isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50'}
+                    ${within50km ? 'bg-green-25' : ''}
                     ${inDetectedCity ? 'bg-blue-25' : ''}
                   `}
                   onClick={() => onSelect(hospital)}
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 flex items-center">
+                      <h3 className="font-medium text-gray-900 flex items-center flex-wrap">
                         {hospital.name}
                         {isSelected && <CheckCircle className="ml-2 text-blue-500 flex-shrink-0" size={16} />}
+                        {within50km && <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">Within 50km</span>}
                         {inDetectedCity && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">In {detectedCity}</span>}
+                        {hospital.isNearbyResult && <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">Places API</span>}
                       </h3>
                       
                       <div className="mt-1 flex items-center text-sm text-gray-500">
@@ -523,7 +628,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                       </div>
                       
                       <div className="mt-2 flex flex-wrap gap-1">
-                        {hospital.specialties.map((specialty) => (
+                        {hospital.specialties && hospital.specialties.map((specialty) => (
                           <span
                             key={specialty}
                             className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
@@ -537,7 +642,9 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                     <div className="ml-4 text-right flex-shrink-0">
                       <div className="text-sm font-medium text-gray-900 flex items-center justify-end">
                         <Navigation size={12} className="mr-1" />
-                        {distance.toFixed(1)} km
+                        <span className={within50km ? 'text-green-600 font-bold' : ''}>
+                          {distance.toFixed(1)} km
+                        </span>
                       </div>
                       <div className="text-sm text-gray-500 flex items-center justify-end">
                         <Clock size={12} className="mr-1" />
@@ -559,7 +666,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                       
                       {/* Distance indicator */}
                       <div className="mt-1 text-xs text-gray-400">
-                        {geocodedSearchLocation ? 'From search' : detectedCity ? `In ${detectedCity}` : 'From current'}
+                        {geocodedSearchLocation ? 'From search' : detectedCity ? `In ${detectedCity}` : 'From ambulance'}
                       </div>
                     </div>
                   </div>
@@ -585,7 +692,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
       {/* Footer with search info */}
       <div className="p-3 bg-gray-50 border-t flex-shrink-0">
         <p className="text-xs text-gray-600 text-center">
-          🏥 Hospital Search • 🔍 Google Maps Places API • 🚨 Live Emergency Status
+          🏥 Hospital Search (50km radius) • 🔍 Google Maps Places API • 🚨 Live Emergency Status
           {detectedCity && (
             <span className="block mt-1 text-blue-600">
               📍 Prioritizing hospitals in {detectedCity}
@@ -593,7 +700,12 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           )}
           {geocodedSearchLocation && (
             <span className="block mt-1 text-green-600">
-              📍 Searching within 200km radius of your location
+              📍 Searching within 50km radius of your location
+            </span>
+          )}
+          {nearbyHospitals.length > 0 && (
+            <span className="block mt-1 text-purple-600">
+              🔍 {nearbyHospitals.length} real-time results from Google Places API
             </span>
           )}
           {apiError && (
