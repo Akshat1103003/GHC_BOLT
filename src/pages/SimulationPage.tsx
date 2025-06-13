@@ -110,7 +110,7 @@ const SimulationPage: React.FC = () => {
       // Calculate route
       const route = calculateRoute(ambulanceLocation, selectedHospital.id);
       
-      // Start ambulance movement simulation
+      // Start ambulance movement simulation with configurable speed
       const sim = simulateAmbulanceMovement(
         route,
         trafficSignals,
@@ -160,7 +160,8 @@ const SimulationPage: React.FC = () => {
               toggleEmergency();
             }
           }, 2000);
-        }
+        },
+        simulationSpeed // Pass the simulation speed factor
       );
       
       setSimulation(sim);
@@ -257,7 +258,7 @@ const SimulationPage: React.FC = () => {
                 >
                   {isSimulationRunning ? (
                     <>
-                      <Pause className="mr-2\" size={18} />
+                      <Pause className="mr-2" size={18} />
                       Pause
                     </>
                   ) : (
@@ -285,12 +286,18 @@ const SimulationPage: React.FC = () => {
                 <input
                   type="range"
                   min="0.5"
-                  max="2"
+                  max="3"
                   step="0.5"
                   value={simulationSpeed}
                   onChange={(e) => setSimulationSpeed(parseFloat(e.target.value))}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>0.5x (Slow)</span>
+                  <span>1x (Normal)</span>
+                  <span>2x (Fast)</span>
+                  <span>3x (Very Fast)</span>
+                </div>
               </div>
               
               {/* Emergency status */}
@@ -366,6 +373,7 @@ const SimulationPage: React.FC = () => {
               <ol className="list-decimal list-inside space-y-2 text-gray-600 pl-4">
                 <li>Search for a location or select a destination hospital from the list</li>
                 <li>Press the Start button to begin the simulation</li>
+                <li>Adjust the simulation speed using the slider (0.5x to 3x speed)</li>
                 <li>Watch as the ambulance travels along the optimal route</li>
                 <li>Traffic signals will change status as the ambulance approaches</li>
                 <li>The hospital will prepare for the patient's arrival</li>
@@ -374,13 +382,13 @@ const SimulationPage: React.FC = () => {
               
               <div className="mt-4 p-4 bg-blue-50 rounded-md">
                 <p className="text-sm text-blue-800">
-                  <strong>New Feature:</strong> Use the Google Maps search to find hospitals near any location worldwide. Simply type a city name, address, or landmark in the hospital search box.
+                  <strong>Speed Control:</strong> Use the simulation speed slider to control how fast the ambulance moves. This is perfect for demonstrations or detailed analysis of the emergency response process.
                 </p>
               </div>
               
               <div className="mt-4 p-4 bg-green-50 rounded-md">
                 <p className="text-sm text-green-800">
-                  <strong>Note:</strong> This system uses real-time data from Supabase. All changes are synchronized across all connected clients in real-time.
+                  <strong>Real-time Data:</strong> This system uses real-time data from Supabase. All changes are synchronized across all connected clients in real-time.
                 </p>
               </div>
             </div>

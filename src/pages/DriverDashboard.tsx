@@ -106,7 +106,7 @@ const DriverDashboard: React.FC = () => {
         details: `${route.distance.toFixed(1)} km - Emergency mode active`,
       });
 
-      // Start simulation if not already running
+      // Start simulation if not already running (using default 1x speed for Driver Dashboard)
       if (simulation === null) {
         startSimulation(route);
       }
@@ -118,12 +118,7 @@ const DriverDashboard: React.FC = () => {
     }
   };
 
-  // Handle search location change from HospitalSelect
-  const handleSearchLocationChange = (location: [number, number] | null) => {
-    setSearchLocationForMap(location);
-  };
-
-  // Start the ambulance movement simulation
+  // Start the ambulance movement simulation with default speed
   const startSimulation = (route: any) => {
     const sim = simulateAmbulanceMovement(
       route,
@@ -142,7 +137,8 @@ const DriverDashboard: React.FC = () => {
           details: 'Patient transfer in progress',
         });
         setSimulation(null);
-      }
+      },
+      1 // Default speed factor of 1x for Driver Dashboard
     );
     
     setSimulation(sim);
@@ -252,7 +248,7 @@ const DriverDashboard: React.FC = () => {
             currentLocation={emergencyLocation}
             onSelect={handleHospitalSelect}
             onConfirm={handleHospitalConfirm}
-            onSearchLocationChange={handleSearchLocationChange}
+            onSearchLocationChange={setSearchLocationForMap}
           />
         </div>
 

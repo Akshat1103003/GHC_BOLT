@@ -18,13 +18,14 @@ const calculateDistance = (point1: [number, number], point2: [number, number]): 
   return R * c;
 };
 
-// Simulates the ambulance moving along a route with enhanced traffic signal detection
+// Simulates the ambulance moving along a route with enhanced traffic signal detection and configurable speed
 export const simulateAmbulanceMovement = (
   route: Route,
   trafficSignals: TrafficSignal[],
   onLocationUpdate: (location: [number, number]) => void,
   onTrafficSignalUpdate: (id: string, status: EmergencyStatus) => void,
-  onComplete: () => void
+  onComplete: () => void,
+  speedFactor: number = 1 // NEW: Speed multiplier (1 = normal, 2 = 2x faster, 0.5 = half speed)
 ) => {
   const waypoints = [...route.waypoints];
   let currentWaypointIndex = 0;
@@ -125,15 +126,16 @@ export const simulateAmbulanceMovement = (
       signalState.lastDistance = distance;
     }
     
-    // Calculate time to next waypoint (SLOWER SPEED - increased timing)
+    // Calculate time to next waypoint with configurable speed
     const nextWaypoint = waypoints[currentWaypointIndex + 1];
     if (nextWaypoint) {
       const distance = calculateDistance(currentPosition, nextWaypoint);
-      // SLOWER: Emergency vehicles travel slower - roughly 30-35 km/h average in city
-      // Increased timing from 0.8-2.5s to 2.0-5.0s between waypoints
-      const timeToNextWaypoint = Math.max(2000, Math.min(5000, distance * 2500)); // Between 2.0-5.0 seconds
+      // Base timing: Emergency vehicles travel at roughly 30-35 km/h average in city
+      // Timing between waypoints: 2.0-5.0 seconds base, adjusted by speedFactor
+      const baseTimeToNextWaypoint = Math.max(2000, Math.min(5000, distance * 2500)); // Between 2.0-5.0 seconds
+      const adjustedTime = baseTimeToNextWaypoint / speedFactor; // Apply speed factor
       
-      setTimeout(processNextWaypoint, timeToNextWaypoint);
+      setTimeout(processNextWaypoint, adjustedTime);
     } else {
       // Final waypoint reached
       try {
