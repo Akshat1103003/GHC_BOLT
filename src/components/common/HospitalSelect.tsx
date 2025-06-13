@@ -315,7 +315,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         `Address: ${selectedHospital.address}\n` +
         `Distance: ${calculateDistance(currentLocation, selectedHospital.coordinates).toFixed(1)} km\n` +
         `Estimated Time: ${Math.ceil(calculateDuration(currentLocation, selectedHospital.coordinates))} minutes\n\n` +
-        `This will activate emergency mode and start the ambulance route.`
+        `This will activate emergency mode and create a route path on the map.`
       );
 
       if (confirmed && onConfirm) {
@@ -329,7 +329,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             <div class="mr-2">✅</div>
             <div>
               <div class="font-bold">Emergency Route Confirmed!</div>
-              <div class="text-sm">Ambulance en route to ${selectedHospital.name}</div>
+              <div class="text-sm">Route path created to ${selectedHospital.name}</div>
             </div>
           </div>
         `;
@@ -459,6 +459,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                   : 'bg-red-600 hover:bg-red-700 text-white'
                 }
                 disabled:opacity-50 disabled:cursor-not-allowed
+                animate-pulse
               `}
             >
               {isConfirming ? (
@@ -469,7 +470,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
               ) : (
                 <>
                   <Check className="mr-2 h-4 w-4" />
-                  {emergencyActive ? 'Update Route' : 'Confirm & Start'}
+                  {emergencyActive ? 'Update Route' : 'Confirm & Create Route'}
                 </>
               )}
             </button>
@@ -576,17 +577,29 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         
         {/* Hospital confirmation status */}
         {selectedHospital && (
-          <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+          <div className="mt-2 p-3 bg-amber-50 border-2 border-amber-300 rounded-md">
             <div className="flex items-center justify-between text-sm text-amber-800">
               <div className="flex items-center">
-                <AlertCircle size={14} className="mr-1" />
-                <span>
-                  <strong>{selectedHospital.name}</strong> selected
-                  {emergencyActive ? ' - Route active' : ' - Click confirm to start emergency route'}
-                </span>
+                <AlertCircle size={16} className="mr-2 animate-pulse" />
+                <div>
+                  <p className="font-bold">
+                    {selectedHospital.name} selected
+                  </p>
+                  <p className="text-xs mt-1">
+                    {emergencyActive 
+                      ? '✅ Route active - Click "Update Route" to change destination' 
+                      : '⚠️ Click "Confirm & Create Route" to create the route path on the map'
+                    }
+                  </p>
+                </div>
               </div>
-              <div className="text-xs">
-                {calculateDistance(currentLocation, selectedHospital.coordinates).toFixed(1)}km away
+              <div className="text-right">
+                <div className="text-xs font-medium">
+                  {calculateDistance(currentLocation, selectedHospital.coordinates).toFixed(1)}km away
+                </div>
+                <div className="text-xs">
+                  ~{Math.ceil(calculateDuration(currentLocation, selectedHospital.coordinates))} min
+                </div>
               </div>
             </div>
           </div>
@@ -718,16 +731,20 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                   
                   {/* Emergency route preview for selected hospital */}
                   {isSelected && (
-                    <div className="mt-3 p-2 bg-blue-50 rounded border-l-2 border-blue-200">
-                      <p className="text-xs text-blue-800 font-medium">
-                        🚨 {emergencyActive ? 'Emergency Route Active' : 'Ready to Confirm Emergency Route'}
+                    <div className="mt-3 p-3 bg-blue-50 rounded border-l-4 border-blue-400">
+                      <p className="text-sm text-blue-800 font-medium flex items-center">
+                        🚨 {emergencyActive ? 'Emergency Route Active' : 'Ready to Create Route Path'}
+                        {!emergencyActive && <span className="ml-2 animate-pulse">👆 Click "Confirm & Create Route" above</span>}
                       </p>
                       <p className="text-xs text-blue-600 mt-1">
                         {emergencyActive 
-                          ? 'Route optimized for emergency response • Real-time signal coordination'
-                          : 'Click "Confirm & Start" to activate emergency mode and begin route'
+                          ? 'Route path visible on map • Real-time signal coordination active'
+                          : 'Route path will be displayed on the map after confirmation'
                         }
                       </p>
+                      <div className="mt-2 text-xs text-blue-700 bg-blue-100 p-2 rounded">
+                        <strong>Route Details:</strong> {distance.toFixed(1)}km • ~{Math.ceil(duration)} minutes • Emergency priority
+                      </div>
                     </div>
                   )}
                 </li>
@@ -757,8 +774,8 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             </span>
           )}
           {selectedHospital && !emergencyActive && (
-            <span className="block mt-1 text-amber-600 font-medium">
-              ⚠️ Hospital selected - Click "Confirm & Start" to begin emergency route
+            <span className="block mt-1 text-amber-600 font-medium animate-pulse">
+              ⚠️ Hospital selected - Click "Confirm & Create Route" to display route path on map
             </span>
           )}
           {apiError && (
