@@ -45,12 +45,11 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
 
   // Sync local state with context state
   useEffect(() => {
-    setLocalSelectedHospital(selectedHospital);
-    console.log('🏥 Hospital selection state updated:', {
-      selectedHospital: selectedHospital?.name || 'None',
-      localSelectedHospital: localSelectedHospital?.name || 'None'
-    });
-  }, [selectedHospital]);
+    if (selectedHospital && selectedHospital.id !== localSelectedHospital?.id) {
+      setLocalSelectedHospital(selectedHospital);
+      console.log('🏥 Syncing hospital selection from context:', selectedHospital.name);
+    }
+  }, [selectedHospital, localSelectedHospital]);
 
   useEffect(() => {
     if (geocodingLibrary) {
@@ -565,10 +564,10 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             )}
           </div>
           
-          {/* Confirmation Button beside search bar - IMPROVED LOGIC */}
+          {/* Confirmation Button beside search bar - FIXED LOGIC */}
           <button
             onClick={handleConfirmHospital}
-            disabled={isConfirming}
+            disabled={isConfirming || !currentlySelectedHospital}
             className={`
               flex items-center px-6 py-3 rounded-md font-bold text-sm
               transition-all duration-200 shadow-lg hover:shadow-xl
@@ -577,7 +576,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                 ? emergencyActive 
                   ? 'bg-green-600 hover:bg-green-700 text-white border-2 border-green-700' 
                   : 'bg-red-600 hover:bg-red-700 text-white border-2 border-red-700 animate-pulse'
-                : 'bg-blue-500 hover:bg-blue-600 text-white border-2 border-blue-600 cursor-pointer'
+                : 'bg-gray-400 text-gray-600 border-2 border-gray-400 cursor-not-allowed'
               }
               disabled:opacity-50 disabled:cursor-not-allowed disabled:animate-none
             `}
@@ -590,7 +589,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             ) : currentlySelectedHospital ? (
               <>
                 <Check className="mr-2 h-5 w-5" />
-                {emergencyActive ? 'Update Route' : 'Confirm Hospital'}
+                Confirm Hospital
               </>
             ) : (
               <>
@@ -655,7 +654,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                   </p>
                   <p className="text-xs mt-1">
                     {emergencyActive 
-                      ? '🚨 Route active - Click "Update Route" to change destination' 
+                      ? '🚨 Route active - Click "Confirm Hospital" to update destination' 
                       : '👆 Now click "Confirm Hospital" button above to create the route path'
                     }
                   </p>
@@ -843,7 +842,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           )}
           {!currentlySelectedHospital && (
             <span className="block mt-1 text-amber-600 font-medium">
-              👆 Click on a hospital below, then click "Select Hospital First" button to confirm
+              👆 Click on a hospital below, then click "Confirm Hospital" button to confirm
             </span>
           )}
           {currentlySelectedHospital && !emergencyActive && (
