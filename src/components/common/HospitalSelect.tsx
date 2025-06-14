@@ -303,7 +303,11 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
 
   // Handle hospital confirmation
   const handleConfirmHospital = async () => {
-    if (!selectedHospital) return;
+    if (!selectedHospital) {
+      // Show helpful message if no hospital is selected
+      alert('Please select a hospital from the list below first, then click this button to confirm your selection.');
+      return;
+    }
 
     setIsConfirming(true);
     
@@ -323,7 +327,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         
         // Show success notification
         const successDiv = document.createElement('div');
-        successDiv.className = 'fixed top-4 right-4 bg-green-600 text-white p-4 rounded-lg shadow-lg z-50 animate-pulse';
+        successDiv.className = 'fixed top-4 right-4 bg-green-600 text-white p-4 rounded-lg shadow-lg z-50 animate-bounce';
         successDiv.innerHTML = `
           <div class="flex items-center">
             <div class="mr-2">✅</div>
@@ -517,10 +521,10 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             )}
           </div>
           
-          {/* Confirmation Button beside search bar */}
+          {/* Confirmation Button beside search bar - FIXED LOGIC */}
           <button
             onClick={handleConfirmHospital}
-            disabled={isConfirming || !selectedHospital}
+            disabled={isConfirming}
             className={`
               flex items-center px-6 py-3 rounded-md font-bold text-sm
               transition-all duration-200 shadow-lg hover:shadow-xl
@@ -529,7 +533,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                 ? emergencyActive 
                   ? 'bg-green-600 hover:bg-green-700 text-white border-2 border-green-700' 
                   : 'bg-red-600 hover:bg-red-700 text-white border-2 border-red-700 animate-pulse'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed border-2 border-gray-300'
+                : 'bg-blue-500 hover:bg-blue-600 text-white border-2 border-blue-600 cursor-pointer'
               }
               disabled:opacity-50 disabled:cursor-not-allowed disabled:animate-none
             `}
@@ -547,11 +551,25 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             ) : (
               <>
                 <AlertCircle className="mr-2 h-5 w-5" />
-                Select Hospital
+                Select Hospital First
               </>
             )}
           </button>
         </div>
+        
+        {/* Instruction text for better UX */}
+        {!selectedHospital && (
+          <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+            <div className="flex items-center text-sm text-yellow-800">
+              <AlertCircle size={14} className="mr-2 flex-shrink-0" />
+              <span>
+                <strong>Step 1:</strong> Click on a hospital from the list below to select it.
+                <br />
+                <strong>Step 2:</strong> Then click the "Confirm Hospital" button above to create the route.
+              </span>
+            </div>
+          </div>
+        )}
         
         {/* Search status indicators */}
         {detectedCity && (
@@ -586,15 +604,15 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           <div className="mb-2 p-3 bg-amber-50 border-2 border-amber-300 rounded-md">
             <div className="flex items-center justify-between text-sm text-amber-800">
               <div className="flex items-center">
-                <AlertCircle size={16} className="mr-2 animate-pulse" />
+                <CheckCircle size={16} className="mr-2 text-green-600" />
                 <div>
                   <p className="font-bold">
-                    {selectedHospital.name} selected
+                    ✅ {selectedHospital.name} selected
                   </p>
                   <p className="text-xs mt-1">
                     {emergencyActive 
-                      ? '✅ Route active - Click "Update Route" to change destination' 
-                      : '⚠️ Click "Confirm Hospital" to create the route path on the map'
+                      ? '🚨 Route active - Click "Update Route" to change destination' 
+                      : '👆 Now click "Confirm Hospital" button above to create the route path'
                     }
                   </p>
                 </div>
@@ -739,13 +757,13 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                   {isSelected && (
                     <div className="mt-3 p-3 bg-blue-50 rounded border-l-4 border-blue-400">
                       <p className="text-sm text-blue-800 font-medium flex items-center">
-                        🚨 {emergencyActive ? 'Emergency Route Active' : 'Ready to Create Route Path'}
+                        🚨 {emergencyActive ? 'Emergency Route Active' : 'Hospital Selected - Ready to Confirm'}
                         {!emergencyActive && <span className="ml-2 animate-pulse">👆 Click "Confirm Hospital" above</span>}
                       </p>
                       <p className="text-xs text-blue-600 mt-1">
                         {emergencyActive 
                           ? 'Route path visible on map • Real-time signal coordination active'
-                          : 'Route path will be displayed on the map after confirmation'
+                          : 'Route path will be displayed on the map after clicking the confirmation button'
                         }
                       </p>
                       <div className="mt-2 text-xs text-blue-700 bg-blue-100 p-2 rounded">
@@ -779,9 +797,14 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
               🔍 {nearbyHospitals.length} real-time results from Google Places API
             </span>
           )}
+          {!selectedHospital && (
+            <span className="block mt-1 text-amber-600 font-medium">
+              👆 Click on a hospital below, then click "Select Hospital First" button to confirm
+            </span>
+          )}
           {selectedHospital && !emergencyActive && (
-            <span className="block mt-1 text-amber-600 font-medium animate-pulse">
-              ⚠️ Hospital selected - Click "Confirm Hospital" to display route path on map
+            <span className="block mt-1 text-green-600 font-medium animate-pulse">
+              ✅ Hospital selected - Click "Confirm Hospital" button to display route path on map
             </span>
           )}
           {apiError && (
