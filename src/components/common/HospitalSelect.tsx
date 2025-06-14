@@ -439,43 +439,11 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   return (
     <div className={`bg-white rounded-lg shadow-md flex flex-col ${className}`}>
       <div className="p-4 border-b flex-shrink-0">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-            <Globe className="mr-2" size={20} />
-            Find Hospitals {detectedCity && `in ${detectedCity}`}
-            <span className="ml-2 text-sm font-normal text-blue-600">(50km radius)</span>
-          </h2>
-          
-          {/* Confirmation Button */}
-          {selectedHospital && (
-            <button
-              onClick={handleConfirmHospital}
-              disabled={isConfirming || !selectedHospital}
-              className={`
-                flex items-center px-4 py-2 rounded-lg font-medium text-sm
-                transition-all duration-200 shadow-md hover:shadow-lg
-                ${emergencyActive 
-                  ? 'bg-green-600 hover:bg-green-700 text-white' 
-                  : 'bg-red-600 hover:bg-red-700 text-white'
-                }
-                disabled:opacity-50 disabled:cursor-not-allowed
-                animate-pulse
-              `}
-            >
-              {isConfirming ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Confirming...
-                </>
-              ) : (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  {emergencyActive ? 'Update Route' : 'Confirm & Create Route'}
-                </>
-              )}
-            </button>
-          )}
-        </div>
+        <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+          <Globe className="mr-2" size={20} />
+          Find Hospitals {detectedCity && `in ${detectedCity}`}
+          <span className="ml-2 text-sm font-normal text-blue-600">(50km radius)</span>
+        </h2>
         
         {/* API Error Alert */}
         {apiError && (
@@ -503,53 +471,91 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           </div>
         )}
         
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            type="text"
-            placeholder={detectedCity 
-              ? `Search hospitals in ${detectedCity} (50km radius)...` 
-              : "Search hospitals within 50km radius..."
-            }
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onFocus={() => setShowSuggestions(searchSuggestions.length > 0)}
-            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={!!apiError}
-          />
-          {isGeocoding && (
-            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-500 animate-spin" size={18} />
-          )}
-          
-          {/* Search suggestions dropdown - HOSPITAL FOCUSED */}
-          {showSuggestions && searchSuggestions.length > 0 && !apiError && (
-            <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-              {searchSuggestions.map((suggestion, index) => (
-                <button
-                  key={suggestion.place_id}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                >
-                  <div className="flex items-center">
-                    <MapPin size={14} className="text-red-400 mr-2 flex-shrink-0" />
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {suggestion.structured_formatting.main_text}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {suggestion.structured_formatting.secondary_text}
+        {/* Search Bar with Confirmation Button */}
+        <div className="flex gap-3 mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder={detectedCity 
+                ? `Search hospitals in ${detectedCity} (50km radius)...` 
+                : "Search hospitals within 50km radius..."
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => setShowSuggestions(searchSuggestions.length > 0)}
+              className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={!!apiError}
+            />
+            {isGeocoding && (
+              <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-500 animate-spin" size={18} />
+            )}
+            
+            {/* Search suggestions dropdown - HOSPITAL FOCUSED */}
+            {showSuggestions && searchSuggestions.length > 0 && !apiError && (
+              <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto mt-1">
+                {searchSuggestions.map((suggestion, index) => (
+                  <button
+                    key={suggestion.place_id}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                  >
+                    <div className="flex items-center">
+                      <MapPin size={14} className="text-red-400 mr-2 flex-shrink-0" />
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {suggestion.structured_formatting.main_text}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {suggestion.structured_formatting.secondary_text}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Confirmation Button beside search bar */}
+          <button
+            onClick={handleConfirmHospital}
+            disabled={isConfirming || !selectedHospital}
+            className={`
+              flex items-center px-6 py-3 rounded-md font-bold text-sm
+              transition-all duration-200 shadow-lg hover:shadow-xl
+              min-w-[180px] justify-center
+              ${selectedHospital
+                ? emergencyActive 
+                  ? 'bg-green-600 hover:bg-green-700 text-white border-2 border-green-700' 
+                  : 'bg-red-600 hover:bg-red-700 text-white border-2 border-red-700 animate-pulse'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed border-2 border-gray-300'
+              }
+              disabled:opacity-50 disabled:cursor-not-allowed disabled:animate-none
+            `}
+          >
+            {isConfirming ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Confirming...
+              </>
+            ) : selectedHospital ? (
+              <>
+                <Check className="mr-2 h-5 w-5" />
+                {emergencyActive ? 'Update Route' : 'Confirm Hospital'}
+              </>
+            ) : (
+              <>
+                <AlertCircle className="mr-2 h-5 w-5" />
+                Select Hospital
+              </>
+            )}
+          </button>
         </div>
         
         {/* Search status indicators */}
         {detectedCity && (
-          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
             <div className="flex items-center text-sm text-blue-800">
               <Target size={14} className="mr-1" />
               <span>Showing hospitals in: <strong>{detectedCity}</strong> (within 50km)</span>
@@ -558,7 +564,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         )}
 
         {geocodedSearchLocation && (
-          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+          <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded-md">
             <div className="flex items-center text-sm text-green-800">
               <Target size={14} className="mr-1" />
               <span>Searching near: {geocodedSearchLocation[0].toFixed(4)}, {geocodedSearchLocation[1].toFixed(4)}</span>
@@ -567,7 +573,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         )}
         
         {geocodingError && (
-          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+          <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-md">
             <div className="flex items-center text-sm text-red-800">
               <XCircle size={14} className="mr-1" />
               <span>{geocodingError}</span>
@@ -577,7 +583,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         
         {/* Hospital confirmation status */}
         {selectedHospital && (
-          <div className="mt-2 p-3 bg-amber-50 border-2 border-amber-300 rounded-md">
+          <div className="mb-2 p-3 bg-amber-50 border-2 border-amber-300 rounded-md">
             <div className="flex items-center justify-between text-sm text-amber-800">
               <div className="flex items-center">
                 <AlertCircle size={16} className="mr-2 animate-pulse" />
@@ -588,7 +594,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                   <p className="text-xs mt-1">
                     {emergencyActive 
                       ? '✅ Route active - Click "Update Route" to change destination' 
-                      : '⚠️ Click "Confirm & Create Route" to create the route path on the map'
+                      : '⚠️ Click "Confirm Hospital" to create the route path on the map'
                     }
                   </p>
                 </div>
@@ -605,7 +611,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           </div>
         )}
         
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-gray-500">
           {detectedCity 
             ? `Showing ${sortedHospitals.length} hospitals in ${detectedCity} and within 50km radius`
             : geocodedSearchLocation 
@@ -734,7 +740,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                     <div className="mt-3 p-3 bg-blue-50 rounded border-l-4 border-blue-400">
                       <p className="text-sm text-blue-800 font-medium flex items-center">
                         🚨 {emergencyActive ? 'Emergency Route Active' : 'Ready to Create Route Path'}
-                        {!emergencyActive && <span className="ml-2 animate-pulse">👆 Click "Confirm & Create Route" above</span>}
+                        {!emergencyActive && <span className="ml-2 animate-pulse">👆 Click "Confirm Hospital" above</span>}
                       </p>
                       <p className="text-xs text-blue-600 mt-1">
                         {emergencyActive 
@@ -775,7 +781,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           )}
           {selectedHospital && !emergencyActive && (
             <span className="block mt-1 text-amber-600 font-medium animate-pulse">
-              ⚠️ Hospital selected - Click "Confirm & Create Route" to display route path on map
+              ⚠️ Hospital selected - Click "Confirm Hospital" to display route path on map
             </span>
           )}
           {apiError && (
