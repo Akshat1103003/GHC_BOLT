@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
+import { Map, Marker, InfoWindow, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Ambulance, Building2, MapPin, AlertTriangle, Navigation, Globe, Search, Route } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { EmergencyStatus } from '../../types';
@@ -18,6 +18,9 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     emergencyActive
   } = useAppContext();
 
+  // Load Google Maps geometry library
+  const geometryLibrary = useMapsLibrary('geometry');
+
   const [alertingSignals, setAlertingSignals] = useState<Set<string>>(new Set());
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
@@ -26,6 +29,16 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
   const [routePolyline, setRoutePolyline] = useState<google.maps.Polyline | null>(null);
   const [routeInfo, setRouteInfo] = useState<{distance: string, duration: string} | null>(null);
   const [isRouteVisible, setIsRouteVisible] = useState(false);
+  const [googleMapsSizeConstructor, setGoogleMapsSizeConstructor] = useState<typeof google.maps.Size | null>(null);
+  const [googleMapsPointConstructor, setGoogleMapsPointConstructor] = useState<typeof google.maps.Point | null>(null);
+
+  // Initialize Google Maps constructors when geometry library is loaded
+  useEffect(() => {
+    if (geometryLibrary && window.google && window.google.maps) {
+      setGoogleMapsSizeConstructor(() => window.google.maps.Size);
+      setGoogleMapsPointConstructor(() => window.google.maps.Point);
+    }
+  }, [geometryLibrary]);
 
   // Initialize Google Maps services
   useEffect(() => {
@@ -455,7 +468,77 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
   };
 
   // Create SVG-based marker icons that are more reliable
-  const createSVGMarkerIcon = (type: string, status?: EmergencyStatus, isAlerting?: boolean) => {
+  const createSVGMarkerIcon = useCallback((type: string, status?: EmergencyStatus, isAlerting?: boolean) => {
+    // Return basic fallback if Google Maps constructors aren't loaded yet
+    if (!googleMapsSizeConstructor || !googleMapsPointConstructor) {
+      let svgContent = '';
+      let size = 40;
+      let fillColor = '#FFFFFF';
+      
+      if (type === 'ambulance') {
+        size = 48;
+        fillColor = emergencyActive ? '#DC2626' : '#EF4444';
+        svgContent = `
+          <circle cx="24" cy="24" r="22" fill="white" stroke="${fillColor}" stroke-width="3"/>
+          <rect x="8" y="16" width="32" height="16" rx="2" fill="${fillColor}"/>
+          <rect x="10" y="10" width="28" height="12" rx="1" fill="${fillColor}"/>
+          <circle cx="14" cy="36" r="3" fill="white" stroke="${fillColor}" stroke-width="2"/>
+          <circle cx="34" cy="36" r="3" fill="white" stroke="${fillColor}" stroke-width="2"/>
+          <rect x="22" y="12" width="4" height="12" fill="white"/>
+          <rect x="16" y="16" width="16" height="4" fill="white"/>
+          ${emergencyActive ? '<circle cx="24" cy="8" r="3" fill="#FBBF24"><animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/></circle>' : ''}
+        `;
+      } else if (type === 'hospital') {
+        size = 44;
+        fillColor = '#2563EB';
+        svgContent = `
+          <circle cx="22" cy="22" r="20" fill="white" stroke="${fillColor}" stroke-width="3"/>
+          <rect x="6" y="8" width="32" height="28" rx="2" fill="${fillColor}"/>
+          <rect x="18" y="12" width="8" height="20" fill="white"/>
+          <rect x="10" y="18" width="24" height="8" fill="white"/>
+          <circle cx="12" cy="14" r="1.5" fill="white"/>
+          <circle cx="32" cy="14" r="1.5" fill="white"/>
+          <circle cx="12" cy="30" r="1.5" fill="white"/>
+          <circle cx="32" cy="30" r="1.5" fill="white"/>
+        `;
+      } else if (type === 'traffic') {
+        size = 36;
+        fillColor = '#374151';
+        const redLight = status === EmergencyStatus.INACTIVE || isAlerting ? '#EF4444' : '#6B7280';
+        const yellowLight = status === EmergencyStatus.APPROACHING || isAlerting ? '#F59E0B' : '#6B7280';
+        const greenLight = status === EmergencyStatus.ACTIVE ? '#10B981' : '#6B7280';
+        
+        svgContent = `
+          <circle cx="18" cy="18" r="16" fill="white" stroke="${fillColor}" stroke-width="2"/>
+          <rect x="12" y="4" width="12" height="28" rx="3" fill="${fillColor}"/>
+          <circle cx="18" cy="10" r="3" fill="${redLight}"/>
+          <circle cx="18" cy="18" r="3" fill="${yellowLight}"/>
+          <circle cx="18" cy="26" r="3" fill="${greenLight}"/>
+          <rect x="17" y="30" width="2" height="6" fill="${fillColor}"/>
+          ${isAlerting ? '<circle cx="18" cy="18" r="18" fill="none" stroke="#F59E0B" stroke-width="2" opacity="0.6"><animate attributeName="r" values="16;20;16" dur="1s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.6;0.2;0.6" dur="1s" repeatCount="indefinite"/></circle>' : ''}
+        `;
+      } else if (type === 'search') {
+        size = 40;
+        fillColor = '#10B981';
+        svgContent = `
+          <circle cx="20" cy="20" r="18" fill="white" stroke="${fillColor}" stroke-width="3"/>
+          <circle cx="20" cy="20" r="12" fill="${fillColor}"/>
+          <circle cx="16" cy="16" r="6" fill="none" stroke="white" stroke-width="2"/>
+          <path d="20 20 26 26" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        `;
+      }
+
+      const svgString = `
+        <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">
+          ${svgContent}
+        </svg>
+      `;
+
+      return {
+        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgString)}`
+      };
+    }
+
     let svgContent = '';
     let size = 40;
     let fillColor = '#FFFFFF';
@@ -522,11 +605,11 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
 
     return {
       url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgString)}`,
-      size: new google.maps.Size(size, size),
-      anchor: new google.maps.Point(size / 2, size / 2),
-      scaledSize: new google.maps.Size(size, size)
+      size: new googleMapsSizeConstructor(size, size),
+      anchor: new googleMapsPointConstructor(size / 2, size / 2),
+      scaledSize: new googleMapsSizeConstructor(size, size)
     };
-  };
+  }, [googleMapsSizeConstructor, googleMapsPointConstructor, emergencyActive]);
 
   // Handle map load
   const handleMapLoad = useCallback((map: google.maps.Map) => {
