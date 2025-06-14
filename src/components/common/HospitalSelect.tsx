@@ -33,6 +33,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   const [nearbyHospitals, setNearbyHospitals] = useState<any[]>([]);
   const [isLoadingNearby, setIsLoadingNearby] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [localSelectedHospital, setLocalSelectedHospital] = useState<Hospital | null>(null);
   const { selectedHospital, emergencyActive } = useAppContext();
 
   // Initialize Google Maps services
@@ -41,6 +42,15 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
   const [autocompleteService, setAutocompleteService] = useState<google.maps.places.AutocompleteService | null>(null);
   const [placesService, setPlacesService] = useState<google.maps.places.PlacesService | null>(null);
+
+  // Sync local state with context state
+  useEffect(() => {
+    setLocalSelectedHospital(selectedHospital);
+    console.log('🏥 Hospital selection state updated:', {
+      selectedHospital: selectedHospital?.name || 'None',
+      localSelectedHospital: localSelectedHospital?.name || 'None'
+    });
+  }, [selectedHospital]);
 
   useEffect(() => {
     if (geocodingLibrary) {
@@ -301,11 +311,41 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     performGeocodingByPlaceId(suggestion.place_id);
   };
 
-  // Handle hospital confirmation
+  // Enhanced hospital selection handler
+  const handleHospitalClick = (hospital: Hospital) => {
+    console.log('🏥 Hospital clicked:', hospital.name);
+    
+    // Update local state immediately
+    setLocalSelectedHospital(hospital);
+    
+    // Call the parent's onSelect handler
+    onSelect(hospital);
+    
+    console.log('🏥 Hospital selection updated:', {
+      hospitalName: hospital.name,
+      hospitalId: hospital.id,
+      coordinates: hospital.coordinates
+    });
+  };
+
+  // Handle hospital confirmation with improved validation
   const handleConfirmHospital = async () => {
-    if (!selectedHospital) {
+    // Use local state as primary source, fallback to context state
+    const hospitalToConfirm = localSelectedHospital || selectedHospital;
+    
+    console.log('🏥 Confirm button clicked:', {
+      localSelectedHospital: localSelectedHospital?.name || 'None',
+      selectedHospital: selectedHospital?.name || 'None',
+      hospitalToConfirm: hospitalToConfirm?.name || 'None'
+    });
+
+    if (!hospitalToConfirm) {
       // Show helpful message if no hospital is selected
-      alert('Please select a hospital from the list below first, then click this button to confirm your selection.');
+      alert('Please select a hospital from the list below first.\n\n' +
+            'Steps:\n' +
+            '1. Click on any hospital in the list below\n' +
+            '2. Then click this "Confirm Hospital" button\n\n' +
+            'The selected hospital will be highlighted in blue.');
       return;
     }
 
@@ -314,16 +354,17 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     try {
       // Show confirmation dialog
       const confirmed = window.confirm(
-        `Confirm emergency route to ${selectedHospital.name}?\n\n` +
-        `Hospital: ${selectedHospital.name}\n` +
-        `Address: ${selectedHospital.address}\n` +
-        `Distance: ${calculateDistance(currentLocation, selectedHospital.coordinates).toFixed(1)} km\n` +
-        `Estimated Time: ${Math.ceil(calculateDuration(currentLocation, selectedHospital.coordinates))} minutes\n\n` +
+        `Confirm emergency route to ${hospitalToConfirm.name}?\n\n` +
+        `Hospital: ${hospitalToConfirm.name}\n` +
+        `Address: ${hospitalToConfirm.address}\n` +
+        `Distance: ${calculateDistance(currentLocation, hospitalToConfirm.coordinates).toFixed(1)} km\n` +
+        `Estimated Time: ${Math.ceil(calculateDuration(currentLocation, hospitalToConfirm.coordinates))} minutes\n\n` +
         `This will activate emergency mode and create a route path on the map.`
       );
 
       if (confirmed && onConfirm) {
-        await onConfirm(selectedHospital);
+        console.log('🚨 Confirming hospital route to:', hospitalToConfirm.name);
+        await onConfirm(hospitalToConfirm);
         
         // Show success notification
         const successDiv = document.createElement('div');
@@ -333,7 +374,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             <div class="mr-2">✅</div>
             <div>
               <div class="font-bold">Emergency Route Confirmed!</div>
-              <div class="text-sm">Route path created to ${selectedHospital.name}</div>
+              <div class="text-sm">Route path created to ${hospitalToConfirm.name}</div>
             </div>
           </div>
         `;
@@ -440,6 +481,9 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     return '🏥';
   };
 
+  // Use local state as primary source for determining selection status
+  const currentlySelectedHospital = localSelectedHospital || selectedHospital;
+
   return (
     <div className={`bg-white rounded-lg shadow-md flex flex-col ${className}`}>
       <div className="p-4 border-b flex-shrink-0">
@@ -521,7 +565,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             )}
           </div>
           
-          {/* Confirmation Button beside search bar - FIXED LOGIC */}
+          {/* Confirmation Button beside search bar - IMPROVED LOGIC */}
           <button
             onClick={handleConfirmHospital}
             disabled={isConfirming}
@@ -529,7 +573,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
               flex items-center px-6 py-3 rounded-md font-bold text-sm
               transition-all duration-200 shadow-lg hover:shadow-xl
               min-w-[180px] justify-center
-              ${selectedHospital
+              ${currentlySelectedHospital
                 ? emergencyActive 
                   ? 'bg-green-600 hover:bg-green-700 text-white border-2 border-green-700' 
                   : 'bg-red-600 hover:bg-red-700 text-white border-2 border-red-700 animate-pulse'
@@ -543,7 +587,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Confirming...
               </>
-            ) : selectedHospital ? (
+            ) : currentlySelectedHospital ? (
               <>
                 <Check className="mr-2 h-5 w-5" />
                 {emergencyActive ? 'Update Route' : 'Confirm Hospital'}
@@ -558,7 +602,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
         </div>
         
         {/* Instruction text for better UX */}
-        {!selectedHospital && (
+        {!currentlySelectedHospital && (
           <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
             <div className="flex items-center text-sm text-yellow-800">
               <AlertCircle size={14} className="mr-2 flex-shrink-0" />
@@ -599,15 +643,15 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           </div>
         )}
         
-        {/* Hospital confirmation status */}
-        {selectedHospital && (
+        {/* Hospital confirmation status - IMPROVED */}
+        {currentlySelectedHospital && (
           <div className="mb-2 p-3 bg-amber-50 border-2 border-amber-300 rounded-md">
             <div className="flex items-center justify-between text-sm text-amber-800">
               <div className="flex items-center">
                 <CheckCircle size={16} className="mr-2 text-green-600" />
                 <div>
                   <p className="font-bold">
-                    ✅ {selectedHospital.name} selected
+                    ✅ {currentlySelectedHospital.name} selected
                   </p>
                   <p className="text-xs mt-1">
                     {emergencyActive 
@@ -619,10 +663,10 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
               </div>
               <div className="text-right">
                 <div className="text-xs font-medium">
-                  {calculateDistance(currentLocation, selectedHospital.coordinates).toFixed(1)}km away
+                  {calculateDistance(currentLocation, currentlySelectedHospital.coordinates).toFixed(1)}km away
                 </div>
                 <div className="text-xs">
-                  ~{Math.ceil(calculateDuration(currentLocation, selectedHospital.coordinates))} min
+                  ~{Math.ceil(calculateDuration(currentLocation, currentlySelectedHospital.coordinates))} min
                 </div>
               </div>
             </div>
@@ -666,7 +710,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             {sortedHospitals.map((hospital) => {
               const distance = calculateDistance(referenceLocation, hospital.coordinates);
               const duration = calculateDuration(referenceLocation, hospital.coordinates);
-              const isSelected = selectedHospital?.id === hospital.id;
+              const isSelected = currentlySelectedHospital?.id === hospital.id;
               const location = getHospitalLocation(hospital.address);
               const flag = getCountryFlag(hospital.address);
               const inDetectedCity = detectedCity ? hospital.address.toLowerCase().includes(detectedCity.toLowerCase()) : false;
@@ -681,7 +725,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                     ${within50km ? 'bg-green-25' : ''}
                     ${inDetectedCity ? 'bg-blue-25' : ''}
                   `}
-                  onClick={() => onSelect(hospital)}
+                  onClick={() => handleHospitalClick(hospital)}
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
@@ -797,12 +841,12 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
               🔍 {nearbyHospitals.length} real-time results from Google Places API
             </span>
           )}
-          {!selectedHospital && (
+          {!currentlySelectedHospital && (
             <span className="block mt-1 text-amber-600 font-medium">
               👆 Click on a hospital below, then click "Select Hospital First" button to confirm
             </span>
           )}
-          {selectedHospital && !emergencyActive && (
+          {currentlySelectedHospital && !emergencyActive && (
             <span className="block mt-1 text-green-600 font-medium animate-pulse">
               ✅ Hospital selected - Click "Confirm Hospital" button to display route path on map
             </span>
