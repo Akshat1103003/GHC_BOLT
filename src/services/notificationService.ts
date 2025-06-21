@@ -1,4 +1,4 @@
-import { TrafficSignal, Hospital, EmergencyStatus, Notification } from '../types';
+import { Hospital, Notification } from '../types';
 
 // Check if Supabase is available
 const isSupabaseAvailable = () => {
@@ -9,59 +9,6 @@ const isSupabaseAvailable = () => {
 
 // Mock notification storage for when Supabase is not available
 let mockNotifications: Notification[] = [];
-
-// Simulate sending notifications to traffic signals
-export const notifyTrafficSignal = async (
-  trafficSignal: TrafficSignal,
-  status: EmergencyStatus,
-  estimatedTimeOfArrival: number // in seconds
-): Promise<boolean> => {
-  try {
-    let message = '';
-    
-    switch (status) {
-      case EmergencyStatus.APPROACHING:
-        message = `Emergency vehicle approaching ${trafficSignal.intersection} in ${Math.ceil(estimatedTimeOfArrival / 60)} minutes`;
-        break;
-      case EmergencyStatus.ACTIVE:
-        message = `Emergency vehicle passing through ${trafficSignal.intersection}`;
-        break;
-      case EmergencyStatus.PASSED:
-        message = `Emergency vehicle has passed ${trafficSignal.intersection}`;
-        break;
-      default:
-        message = `Traffic signal ${trafficSignal.intersection} status updated to ${status}`;
-    }
-    
-    if (isSupabaseAvailable()) {
-      const { createNotification } = await import('./supabaseService');
-      await createNotification({
-        type: 'trafficSignal',
-        target_id: trafficSignal.id,
-        message,
-      });
-    } else {
-      // Store in mock notifications
-      const notification: Notification = {
-        id: `n-${Date.now()}-${Math.random()}`,
-        type: 'trafficSignal',
-        targetId: trafficSignal.id,
-        message,
-        timestamp: new Date(),
-        read: false,
-      };
-      mockNotifications.unshift(notification);
-    }
-    
-    console.log(`Notified traffic signal ${trafficSignal.id} at ${trafficSignal.intersection}`);
-    console.log(`Status: ${status}, ETA: ${estimatedTimeOfArrival} seconds`);
-    
-    return true;
-  } catch (error) {
-    console.error('Error notifying traffic signal:', error);
-    return false;
-  }
-};
 
 // Simulate sending notifications to hospitals
 export const notifyHospital = async (
@@ -105,7 +52,7 @@ export const notifyHospital = async (
 };
 
 // Get notifications for a specific entity
-export const getNotifications = async (entityId: string, entityType: 'hospital' | 'trafficSignal'): Promise<Notification[]> => {
+export const getNotifications = async (entityId: string, entityType: 'hospital'): Promise<Notification[]> => {
   if (isSupabaseAvailable()) {
     try {
       const { getNotifications: getNotificationsFromDB } = await import('./supabaseService');
