@@ -9,7 +9,6 @@ import StatusCard from '../components/dashboard/StatusCard';
 import NotificationPanel from '../components/notifications/NotificationPanel';
 import { useAppContext } from '../contexts/AppContext';
 import { calculateRoute } from '../utils/mockData';
-import { simulateAmbulanceMovement } from '../services/simulationService';
 
 const DriverDashboard: React.FC = () => {
   const {
@@ -19,8 +18,6 @@ const DriverDashboard: React.FC = () => {
     updateAmbulanceLocation,
     selectedHospital,
     selectHospital,
-    trafficSignals,
-    updateTrafficSignal,
     setCurrentRoute,
     hospitals,
     notifications,
@@ -34,7 +31,6 @@ const DriverDashboard: React.FC = () => {
     gender: 'Male',
   });
 
-  const [simulation, setSimulation] = useState<any>(null);
   const [routeStatus, setRouteStatus] = useState({
     status: 'inactive',
     message: 'No active route',
@@ -106,48 +102,11 @@ const DriverDashboard: React.FC = () => {
         details: `${route.distance.toFixed(1)} km - Emergency mode active`,
       });
 
-      // Start simulation if not already running (using default 1x speed for Driver Dashboard)
-      if (simulation === null) {
-        startSimulation(route);
-      }
-
       console.log(`Emergency route confirmed to ${hospital.name}`);
     } catch (error) {
       console.error('Error confirming hospital route:', error);
       throw error; // Re-throw to let the component handle the error
     }
-  };
-
-  // Start the ambulance movement simulation with default speed
-  const startSimulation = (route: any) => {
-    const sim = simulateAmbulanceMovement(
-      route,
-      trafficSignals,
-      (location) => {
-        updateAmbulanceLocation(location);
-      },
-      (id, status) => {
-        updateTrafficSignal(id, status);
-      },
-      () => {
-        // Simulation complete
-        setRouteStatus({
-          status: 'success',
-          message: 'Arrived at destination',
-          details: 'Patient transfer in progress',
-        });
-        setSimulation(null);
-      },
-      1 // Default speed factor of 1x for Driver Dashboard
-    );
-    
-    setSimulation(sim);
-    
-    setRouteStatus({
-      status: 'warning',
-      message: 'En route to hospital',
-      details: `Emergency active - ${route.distance.toFixed(1)} km remaining`,
-    });
   };
 
   if (isLoading) {

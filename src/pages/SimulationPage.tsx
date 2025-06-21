@@ -4,11 +4,8 @@ import MapView from '../components/map/MapView';
 import HospitalSelect from '../components/common/HospitalSelect';
 import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
-import TrafficSignal from '../components/traffic/TrafficSignal';
 import { useAppContext } from '../contexts/AppContext';
 import { calculateRoute } from '../utils/mockData';
-import { simulateAmbulanceMovement, simulateHospitalPreparation } from '../services/simulationService';
-import { EmergencyStatus } from '../types';
 
 const SimulationPage: React.FC = () => {
   const {
@@ -16,8 +13,6 @@ const SimulationPage: React.FC = () => {
     updateAmbulanceLocation,
     selectedHospital,
     selectHospital,
-    trafficSignals,
-    updateTrafficSignal,
     toggleEmergency,
     emergencyActive,
     setCurrentRoute,
@@ -39,7 +34,6 @@ const SimulationPage: React.FC = () => {
   const simulationSteps = [
     'Select a hospital and start the simulation',
     'Ambulance begins journey, emergency mode activated',
-    'Traffic signals notified as ambulance approaches',
     'Hospital prepares for patient arrival',
     'Ambulance arrives at hospital',
     'Simulation complete',
@@ -62,11 +56,6 @@ const SimulationPage: React.FC = () => {
     
     // Update app context
     selectHospital(hospital);
-    
-    // Reset traffic signals
-    trafficSignals.forEach(signal => {
-      updateTrafficSignal(signal.id, EmergencyStatus.INACTIVE);
-    });
     
     // Calculate route
     const route = calculateRoute(ambulanceLocation, hospital.id);
@@ -99,7 +88,7 @@ const SimulationPage: React.FC = () => {
       // If we're at step 0, advance to step 1
       if (simulationStep === 0) {
         setSimulationStep(1);
-        setSimulationProgress(20);
+        setSimulationProgress(25);
         
         // Activate emergency mode if not already active
         if (!emergencyActive) {
@@ -110,62 +99,57 @@ const SimulationPage: React.FC = () => {
       // Calculate route
       const route = calculateRoute(ambulanceLocation, selectedHospital.id);
       
-      // Start ambulance movement simulation with configurable speed
-      const sim = simulateAmbulanceMovement(
-        route,
-        trafficSignals,
-        (location) => {
-          updateAmbulanceLocation(location);
-        },
-        (id, status) => {
-          updateTrafficSignal(id, status);
-          
-          // If the first traffic signal is approaching, advance to step 2
-          if (status === EmergencyStatus.APPROACHING && simulationStep < 2) {
-            setSimulationStep(2);
-            setSimulationProgress(40);
-          }
-          
-          // If any traffic signal is active, advance to step 3 if not already there
-          if (status === EmergencyStatus.ACTIVE && simulationStep < 3) {
-            setSimulationStep(3);
-            setSimulationProgress(60);
-            
-            // Start hospital preparation simulation
-            simulateHospitalPreparation(
-              selectedHospital.id,
-              'Critical',
-              route.duration / 2, // Half of the route duration
-              (status, progress) => {
-                setHospitalStatus(status);
-                setHospitalPreparationProgress(progress);
-              }
-            );
-          }
-        },
-        () => {
-          // Simulation complete
-          setSimulationStep(5);
-          setSimulationProgress(100);
-          setIsSimulationRunning(false);
-          setSimulation(null);
-          
-          // Set hospital as fully prepared
-          setHospitalStatus('Ready for patient arrival');
-          setHospitalPreparationProgress(100);
-          
-          // Deactivate emergency mode after a delay
-          setTimeout(() => {
-            if (emergencyActive) {
-              toggleEmergency();
-            }
-          }, 2000);
-        },
-        simulationSpeed // Pass the simulation speed factor
-      );
-      
+      // Start simple simulation
+      const sim = startSimpleSimulation(route);
       setSimulation(sim);
     }
+  };
+
+  // Simple simulation without traffic signals
+  const startSimpleSimulation = (route: any) => {
+    let currentStep = simulationStep;
+    let isRunning = true;
+    
+    const updateSimulation = () => {
+      if (!isRunning) return;
+      
+      currentStep++;
+      setSimulationStep(currentStep);
+      setSimulationProgress(currentStep * 25);
+      
+      if (currentStep === 2) {
+        setHospitalStatus('Hospital notified - preparing for arrival');
+        setHospitalPreparationProgress(50);
+      } else if (currentStep === 3) {
+        setHospitalStatus('Hospital ready for patient arrival');
+        setHospitalPreparationProgress(100);
+      } else if (currentStep >= 4) {
+        setIsSimulationRunning(false);
+        setSimulation(null);
+        setHospitalStatus('Patient arrived - simulation complete');
+        
+        // Deactivate emergency mode after a delay
+        setTimeout(() => {
+          if (emergencyActive) {
+            toggleEmergency();
+          }
+        }, 2000);
+        return;
+      }
+      
+      // Continue simulation
+      setTimeout(updateSimulation, 3000 / simulationSpeed);
+    };
+    
+    // Start the simulation
+    setTimeout(updateSimulation, 1000);
+    
+    return {
+      cancel: () => {
+        isRunning = false;
+        console.log('🛑 Simulation cancelled');
+      }
+    };
   };
 
   // Reset simulation
@@ -182,11 +166,6 @@ const SimulationPage: React.FC = () => {
     setIsSimulationRunning(false);
     setHospitalStatus('Waiting for notification');
     setHospitalPreparationProgress(0);
-    
-    // Reset traffic signals
-    trafficSignals.forEach(signal => {
-      updateTrafficSignal(signal.id, EmergencyStatus.INACTIVE);
-    });
     
     // Deactivate emergency mode if active
     if (emergencyActive) {
@@ -264,7 +243,7 @@ const SimulationPage: React.FC = () => {
                   ) : (
                     <>
                       <Play className="mr-2" size={18} />
-                      {simulationStep === 0 || simulationStep === 5 ? 'Start' : 'Resume'}
+                      {simulationStep === 0 || simulationStep >= 4 ? 'Start' : 'Resume'}
                     </>
                   )}
                 </button>
@@ -311,17 +290,6 @@ const SimulationPage: React.FC = () => {
               </div>
             </div>
           </div>
-          
-          {/* Traffic Signal Preview */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-800">Traffic Signal Preview</h2>
-            <TrafficSignal
-              status={trafficSignals[0]?.status || EmergencyStatus.INACTIVE}
-              intersection={trafficSignals[0]?.intersection || 'Main St & 1st Ave'}
-              soundEnabled={soundEnabled}
-              onToggleSound={() => setSoundEnabled(!soundEnabled)}
-            />
-          </div>
 
           {/* Hospital selection with search */}
           <HospitalSelect
@@ -345,44 +313,27 @@ const SimulationPage: React.FC = () => {
           {/* Map view with search location */}
           <MapView searchLocation={searchLocationForMap} />
           
-          {/* Traffic Signals Grid */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Traffic Signal Network</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {trafficSignals.map((signal) => (
-                <TrafficSignal
-                  key={signal.id}
-                  status={signal.status}
-                  intersection={signal.intersection}
-                  soundEnabled={soundEnabled}
-                  onToggleSound={() => setSoundEnabled(!soundEnabled)}
-                />
-              ))}
-            </div>
-          </div>
-          
           {/* Simulation explanation */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">How This Simulation Works</h2>
             
             <div className="space-y-4">
               <p className="text-gray-600">
-                This interactive simulation demonstrates how our emergency response system creates green corridors for ambulances by communicating with traffic signals and hospitals in real-time.
+                This interactive simulation demonstrates how our emergency response system creates routes for ambulances and coordinates with hospitals in real-time.
               </p>
               
               <ol className="list-decimal list-inside space-y-2 text-gray-600 pl-4">
                 <li>Search for a location or select a destination hospital from the list</li>
                 <li>Press the Start button to begin the simulation</li>
                 <li>Adjust the simulation speed using the slider (0.5x to 3x speed)</li>
-                <li>Watch as the ambulance travels along the optimal route</li>
-                <li>Traffic signals will change status as the ambulance approaches</li>
+                <li>Watch as the ambulance route is planned to the hospital</li>
                 <li>The hospital will prepare for the patient's arrival</li>
                 <li>Monitor real-time updates in the status cards</li>
               </ol>
               
               <div className="mt-4 p-4 bg-blue-50 rounded-md">
                 <p className="text-sm text-blue-800">
-                  <strong>Speed Control:</strong> Use the simulation speed slider to control how fast the ambulance moves. This is perfect for demonstrations or detailed analysis of the emergency response process.
+                  <strong>Speed Control:</strong> Use the simulation speed slider to control how fast the simulation progresses. This is perfect for demonstrations or detailed analysis of the emergency response process.
                 </p>
               </div>
               

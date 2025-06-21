@@ -1,4 +1,4 @@
-import { Hospital, TrafficSignal, EmergencyStatus, Route } from '../types';
+import { Hospital, Route } from '../types';
 
 // Global hospitals from various cities and countries with actual coordinates
 export const mockHospitals: Hospital[] = [
@@ -187,119 +187,6 @@ export const mockHospitals: Hospital[] = [
   },
 ];
 
-// Global traffic signals from various cities with actual coordinates
-export const mockTrafficSignals: TrafficSignal[] = [
-  // New York City, USA
-  {
-    id: 't1',
-    coordinates: [40.7128, -74.0060],
-    intersection: 'Broadway & Wall St, NYC',
-    status: EmergencyStatus.INACTIVE,
-  },
-  {
-    id: 't2',
-    coordinates: [40.7282, -73.9942],
-    intersection: 'Broadway & 23rd St (Flatiron), NYC',
-    status: EmergencyStatus.INACTIVE,
-  },
-  {
-    id: 't3',
-    coordinates: [40.7505, -73.9934],
-    intersection: 'Broadway & 42nd St (Times Square), NYC',
-    status: EmergencyStatus.INACTIVE,
-  },
-
-  // London, UK
-  {
-    id: 't4',
-    coordinates: [51.5074, -0.1278],
-    intersection: 'Westminster Bridge & Parliament St, London',
-    status: EmergencyStatus.INACTIVE,
-  },
-  {
-    id: 't5',
-    coordinates: [51.5155, -0.0922],
-    intersection: 'London Bridge & Borough High St, London',
-    status: EmergencyStatus.INACTIVE,
-  },
-
-  // Paris, France
-  {
-    id: 't6',
-    coordinates: [48.8566, 2.3522],
-    intersection: 'Champs-Élysées & Place de la Concorde, Paris',
-    status: EmergencyStatus.INACTIVE,
-  },
-  {
-    id: 't7',
-    coordinates: [48.8738, 2.2950],
-    intersection: 'Arc de Triomphe & Avenue Foch, Paris',
-    status: EmergencyStatus.INACTIVE,
-  },
-
-  // Tokyo, Japan
-  {
-    id: 't8',
-    coordinates: [35.6762, 139.6503],
-    intersection: 'Shibuya Crossing, Tokyo',
-    status: EmergencyStatus.INACTIVE,
-  },
-  {
-    id: 't9',
-    coordinates: [35.6812, 139.7671],
-    intersection: 'Tokyo Station & Marunouchi, Tokyo',
-    status: EmergencyStatus.INACTIVE,
-  },
-
-  // Sydney, Australia
-  {
-    id: 't10',
-    coordinates: [-33.8688, 151.2093],
-    intersection: 'George St & Martin Place, Sydney',
-    status: EmergencyStatus.INACTIVE,
-  },
-
-  // Toronto, Canada
-  {
-    id: 't11',
-    coordinates: [43.6532, -79.3832],
-    intersection: 'Yonge St & Dundas Square, Toronto',
-    status: EmergencyStatus.INACTIVE,
-  },
-
-  // Mumbai, India
-  {
-    id: 't12',
-    coordinates: [19.0760, 72.8777],
-    intersection: 'Marine Drive & Nariman Point, Mumbai',
-    status: EmergencyStatus.INACTIVE,
-  },
-
-  // Berlin, Germany
-  {
-    id: 't13',
-    coordinates: [52.5200, 13.4050],
-    intersection: 'Brandenburg Gate & Unter den Linden, Berlin',
-    status: EmergencyStatus.INACTIVE,
-  },
-
-  // Dubai, UAE
-  {
-    id: 't14',
-    coordinates: [25.2048, 55.2708],
-    intersection: 'Sheikh Zayed Rd & Dubai Mall, Dubai',
-    status: EmergencyStatus.INACTIVE,
-  },
-
-  // Singapore
-  {
-    id: 't15',
-    coordinates: [1.2966, 103.8520],
-    intersection: 'Orchard Rd & Scotts Rd, Singapore',
-    status: EmergencyStatus.INACTIVE,
-  },
-];
-
 export const mockRoutes: Route[] = [
   {
     id: 'r1',
@@ -314,7 +201,6 @@ export const mockRoutes: Route[] = [
     ],
     distance: 8.5,
     duration: 15,
-    trafficSignalsOnRoute: ['t1', 't2', 't3'],
   },
   {
     id: 'r2',
@@ -327,7 +213,6 @@ export const mockRoutes: Route[] = [
     ],
     distance: 4.2,
     duration: 12,
-    trafficSignalsOnRoute: ['t4', 't5'],
   },
 ];
 
@@ -356,9 +241,8 @@ export const calculateRoute = (
     return updatedRoute;
   }
 
-  // Create optimized route with traffic signals along the path
+  // Create optimized route
   const routeWaypoints = generateOptimalWaypoints(startLocation, hospital.coordinates);
-  const trafficSignalsOnRoute = findTrafficSignalsOnPath(routeWaypoints);
 
   const directRoute: Route = {
     id: `r-${Date.now()}`,
@@ -367,48 +251,35 @@ export const calculateRoute = (
     waypoints: routeWaypoints,
     distance: calculateTotalDistance(routeWaypoints),
     duration: calculateDuration(startLocation, hospital.coordinates),
-    trafficSignalsOnRoute,
   };
 
   console.log(`🗺️ Route calculated: ${directRoute.distance.toFixed(1)}km, ${Math.ceil(directRoute.duration)} minutes`);
-  console.log(`🚦 Traffic signals on route: ${trafficSignalsOnRoute.length}`);
 
   return directRoute;
 };
 
-// Generate optimal waypoints that pass near major traffic signals
+// Generate optimal waypoints
 const generateOptimalWaypoints = (
   start: [number, number],
   end: [number, number]
 ): [number, number][] => {
   const waypoints: [number, number][] = [start];
   
-  // Find intermediate points that pass near traffic signals
-  const relevantSignals = mockTrafficSignals.filter(signal => {
-    const distToStart = calculateDistance(start, signal.coordinates);
-    const distToEnd = calculateDistance(end, signal.coordinates);
-    const directDistance = calculateDistance(start, end);
+  // Create intermediate waypoints for a more realistic route
+  const numWaypoints = 3;
+  
+  for (let i = 1; i <= numWaypoints; i++) {
+    const ratio = i / (numWaypoints + 1);
+    const lat = start[0] + (end[0] - start[0]) * ratio;
+    const lng = start[1] + (end[1] - start[1]) * ratio;
     
-    // Include signals that are roughly on the path (more lenient for global routes)
-    return distToStart + distToEnd < directDistance * 1.8;
-  });
-  
-  // Sort signals by distance from start
-  relevantSignals.sort((a, b) => 
-    calculateDistance(start, a.coordinates) - calculateDistance(start, b.coordinates)
-  );
-  
-  // Add waypoints near major traffic signals (limit to avoid too many waypoints)
-  const maxWaypoints = Math.min(5, relevantSignals.length);
-  for (let i = 0; i < maxWaypoints; i++) {
-    const signal = relevantSignals[i];
-    // Add the exact signal coordinates for realistic routing
-    waypoints.push(signal.coordinates);
+    // Add slight curve to make route look more realistic
+    const curveOffset = Math.sin(ratio * Math.PI) * 0.002;
+    
+    waypoints.push([lat + curveOffset, lng + curveOffset]);
   }
   
   waypoints.push(end);
-  
-  console.log(`🗺️ Generated route with ${waypoints.length} waypoints through ${maxWaypoints} traffic signals`);
   
   return waypoints;
 };
@@ -451,70 +322,6 @@ export const calculateDuration = (
   const cityTrafficPenalty = 1.4; // 40% slower due to dense traffic
   
   return (distance / baseSpeed) * 60 * cityTrafficPenalty; // Convert to minutes
-};
-
-// Find traffic signals along the route path with better tolerance for real streets
-export const findTrafficSignalsOnPath = (waypoints: [number, number][]): string[] => {
-  const signalsOnRoute: string[] = [];
-  
-  mockTrafficSignals.forEach(signal => {
-    // Check if signal is close to any segment of the route
-    for (let i = 0; i < waypoints.length - 1; i++) {
-      const segmentStart = waypoints[i];
-      const segmentEnd = waypoints[i + 1];
-      
-      // Calculate distance from signal to line segment
-      const distanceToSegment = distanceToLineSegment(
-        signal.coordinates,
-        segmentStart,
-        segmentEnd
-      );
-      
-      // If signal is within 1.5km of the route, include it (increased tolerance for global routes)
-      if (distanceToSegment < 1.5) {
-        signalsOnRoute.push(signal.id);
-        break;
-      }
-    }
-  });
-  
-  return signalsOnRoute;
-};
-
-// Calculate distance from point to line segment
-const distanceToLineSegment = (
-  point: [number, number],
-  lineStart: [number, number],
-  lineEnd: [number, number]
-): number => {
-  const A = point[0] - lineStart[0];
-  const B = point[1] - lineStart[1];
-  const C = lineEnd[0] - lineStart[0];
-  const D = lineEnd[1] - lineStart[1];
-
-  const dot = A * C + B * D;
-  const lenSq = C * C + D * D;
-  
-  if (lenSq === 0) {
-    return calculateDistance(point, lineStart);
-  }
-  
-  let param = dot / lenSq;
-  
-  let xx, yy;
-  
-  if (param < 0) {
-    xx = lineStart[0];
-    yy = lineStart[1];
-  } else if (param > 1) {
-    xx = lineEnd[0];
-    yy = lineEnd[1];
-  } else {
-    xx = lineStart[0] + param * C;
-    yy = lineStart[1] + param * D;
-  }
-  
-  return calculateDistance(point, [xx, yy]);
 };
 
 // Get real-time traffic data (placeholder for future integration)

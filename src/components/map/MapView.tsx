@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Map, Marker, InfoWindow, useMapsLibrary } from '@vis.gl/react-google-maps';
-import { Ambulance, Building2, MapPin, AlertTriangle, Navigation, Globe, Search, Route } from 'lucide-react';
+import { Ambulance, Building2, MapPin, Navigation, Globe, Search, Route } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
-import { EmergencyStatus } from '../../types';
 
 interface MapViewProps {
   searchLocation?: [number, number] | null;
@@ -14,14 +13,12 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     ambulanceLocation, 
     selectedHospital, 
     currentRoute,
-    trafficSignals,
     emergencyActive
   } = useAppContext();
 
   // Load Google Maps geometry library
   const geometryLibrary = useMapsLibrary('geometry');
 
-  const [alertingSignals, setAlertingSignals] = useState<Set<string>>(new Set());
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
   const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
@@ -350,32 +347,6 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     }, 5000);
   };
 
-  // Monitor ambulance proximity to traffic signals
-  useEffect(() => {
-    if (!emergencyActive) {
-      setAlertingSignals(new Set());
-      return;
-    }
-
-    const newAlertingSignals = new Set<string>();
-    
-    trafficSignals.forEach(signal => {
-      const distance = calculateDistance(ambulanceLocation, signal.coordinates);
-      
-      // If ambulance is within 5km of traffic signal (increased for global view)
-      if (distance <= 5.0) {
-        newAlertingSignals.add(signal.id);
-        
-        // Show alert notification
-        if (!alertingSignals.has(signal.id)) {
-          showTrafficAlert(signal.intersection, distance);
-        }
-      }
-    });
-    
-    setAlertingSignals(newAlertingSignals);
-  }, [ambulanceLocation, trafficSignals, emergencyActive]);
-
   // Calculate distance between two points (Haversine formula)
   const calculateDistance = (point1: [number, number], point2: [number, number]): number => {
     const R = 6371; // Earth's radius in kilometers
@@ -387,36 +358,6 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
       Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
-  };
-
-  // Show traffic alert notification
-  const showTrafficAlert = (intersection: string, distance: number) => {
-    // Create a visual alert
-    const alertDiv = document.createElement('div');
-    alertDiv.className = 'fixed top-4 right-4 bg-red-600 text-white p-4 rounded-lg shadow-lg z-50 animate-pulse';
-    alertDiv.innerHTML = `
-      <div class="flex items-center">
-        <div class="mr-2">🚨</div>
-        <div>
-          <div class="font-bold">EMERGENCY ALERT</div>
-          <div class="text-sm">Ambulance approaching ${intersection}</div>
-          <div class="text-xs">Distance: ${distance.toFixed(1)}km</div>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(alertDiv);
-    
-    // Play alert sound
-    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
-    audio.play().catch(() => {}); // Ignore errors if audio can't play
-    
-    // Remove alert after 5 seconds
-    setTimeout(() => {
-      if (document.body.contains(alertDiv)) {
-        document.body.removeChild(alertDiv);
-      }
-    }, 5000);
   };
 
   // Get location name from coordinates
@@ -468,7 +409,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
   };
 
   // Create SVG-based marker icons that are more reliable
-  const createSVGMarkerIcon = useCallback((type: string, status?: EmergencyStatus, isAlerting?: boolean) => {
+  const createSVGMarkerIcon = useCallback((type: string) => {
     // Return basic fallback if Google Maps constructors aren't loaded yet
     if (!googleMapsSizeConstructor || !googleMapsPointConstructor) {
       let svgContent = '';
@@ -501,22 +442,6 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
           <circle cx="12" cy="30" r="1.5" fill="white"/>
           <circle cx="32" cy="30" r="1.5" fill="white"/>
         `;
-      } else if (type === 'traffic') {
-        size = 36;
-        fillColor = '#374151';
-        const redLight = status === EmergencyStatus.INACTIVE || isAlerting ? '#EF4444' : '#6B7280';
-        const yellowLight = status === EmergencyStatus.APPROACHING || isAlerting ? '#F59E0B' : '#6B7280';
-        const greenLight = status === EmergencyStatus.ACTIVE ? '#10B981' : '#6B7280';
-        
-        svgContent = `
-          <circle cx="18" cy="18" r="16" fill="white" stroke="${fillColor}" stroke-width="2"/>
-          <rect x="12" y="4" width="12" height="28" rx="3" fill="${fillColor}"/>
-          <circle cx="18" cy="10" r="3" fill="${redLight}"/>
-          <circle cx="18" cy="18" r="3" fill="${yellowLight}"/>
-          <circle cx="18" cy="26" r="3" fill="${greenLight}"/>
-          <rect x="17" y="30" width="2" height="6" fill="${fillColor}"/>
-          ${isAlerting ? '<circle cx="18" cy="18" r="18" fill="none" stroke="#F59E0B" stroke-width="2" opacity="0.6"><animate attributeName="r" values="16;20;16" dur="1s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.6;0.2;0.6" dur="1s" repeatCount="indefinite"/></circle>' : ''}
-        `;
       } else if (type === 'search') {
         size = 40;
         fillColor = '#10B981';
@@ -542,7 +467,6 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     let svgContent = '';
     let size = 40;
     let fillColor = '#FFFFFF';
-    let strokeColor = '#374151';
     
     if (type === 'ambulance') {
       size = 48;
@@ -569,22 +493,6 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
         <circle cx="32" cy="14" r="1.5" fill="white"/>
         <circle cx="12" cy="30" r="1.5" fill="white"/>
         <circle cx="32" cy="30" r="1.5" fill="white"/>
-      `;
-    } else if (type === 'traffic') {
-      size = 36;
-      fillColor = '#374151';
-      const redLight = status === EmergencyStatus.INACTIVE || isAlerting ? '#EF4444' : '#6B7280';
-      const yellowLight = status === EmergencyStatus.APPROACHING || isAlerting ? '#F59E0B' : '#6B7280';
-      const greenLight = status === EmergencyStatus.ACTIVE ? '#10B981' : '#6B7280';
-      
-      svgContent = `
-        <circle cx="18" cy="18" r="16" fill="white" stroke="${fillColor}" stroke-width="2"/>
-        <rect x="12" y="4" width="12" height="28" rx="3" fill="${fillColor}"/>
-        <circle cx="18" cy="10" r="3" fill="${redLight}"/>
-        <circle cx="18" cy="18" r="3" fill="${yellowLight}"/>
-        <circle cx="18" cy="26" r="3" fill="${greenLight}"/>
-        <rect x="17" y="30" width="2" height="6" fill="${fillColor}"/>
-        ${isAlerting ? '<circle cx="18" cy="18" r="18" fill="none" stroke="#F59E0B" stroke-width="2" opacity="0.6"><animate attributeName="r" values="16;20;16" dur="1s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.6;0.2;0.6" dur="1s" repeatCount="indefinite"/></circle>' : ''}
       `;
     } else if (type === 'search') {
       size = 40;
@@ -659,13 +567,6 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
 
   return (
     <div className={`rounded-lg overflow-hidden shadow-lg ${className}`}>
-      {/* Alert Status Bar */}
-      {alertingSignals.size > 0 && (
-        <div className="bg-red-600 text-white p-2 text-center font-medium animate-pulse">
-          🚨 EMERGENCY ALERT: {alertingSignals.size} Traffic Signal(s) Notified Globally
-        </div>
-      )}
-      
       {/* Map Controls */}
       <div className="bg-gray-100 p-2 border-b flex items-center justify-between">
         <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -701,12 +602,6 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
               <Building2 size={10} className="text-white" />
             </div>
             <span>Hospitals</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-4 h-4 bg-amber-500 rounded-full mr-1 flex items-center justify-center">
-              <AlertTriangle size={8} className="text-white" />
-            </div>
-            <span>Traffic Signals</span>
           </div>
           {searchLocation && (
             <div className="flex items-center">
@@ -903,55 +798,6 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
             )}
           </>
         )}
-        
-        {/* Traffic signal markers with enhanced visibility */}
-        {trafficSignals.map((signal) => (
-          <React.Fragment key={signal.id}>
-            <Marker
-              position={{ lat: signal.coordinates[0], lng: signal.coordinates[1] }}
-              icon={createSVGMarkerIcon('traffic', signal.status, alertingSignals.has(signal.id))}
-              onClick={() => setSelectedMarker(`traffic-${signal.id}`)}
-              zIndex={800} // Lower priority than ambulance and hospital
-            />
-            
-            {selectedMarker === `traffic-${signal.id}` && (
-              <InfoWindow
-                position={{ lat: signal.coordinates[0], lng: signal.coordinates[1] }}
-                onCloseClick={() => setSelectedMarker(null)}
-              >
-                <div className="p-2">
-                  <div className="flex items-center mb-2">
-                    <AlertTriangle size={24} className="text-amber-500" />
-                    <p className="font-bold ml-2">Traffic Signal</p>
-                  </div>
-                  <p className="text-sm">{signal.intersection}</p>
-                  <p className="text-sm mt-1">
-                    Status: {' '}
-                    <span className={`font-semibold ${
-                      signal.status === EmergencyStatus.ACTIVE ? 'text-green-600' :
-                      signal.status === EmergencyStatus.APPROACHING ? 'text-amber-600' :
-                      signal.status === EmergencyStatus.PASSED ? 'text-gray-600' :
-                      'text-gray-400'
-                    }`}>
-                      {signal.status.toUpperCase()}
-                    </span>
-                  </p>
-                  {alertingSignals.has(signal.id) && (
-                    <p className="text-red-600 font-bold mt-1 animate-pulse">
-                      🚨 AMBULANCE APPROACHING
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">
-                    Distance from ambulance: {calculateDistance(ambulanceLocation, signal.coordinates).toFixed(1)}km
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {getLocationName(signal.coordinates)}
-                  </p>
-                </div>
-              </InfoWindow>
-            )}
-          </React.Fragment>
-        ))}
       </Map>
       
       {/* Global Location Info Panel */}
@@ -964,7 +810,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                 ? 'Showing hospitals near your searched location'
                 : selectedHospital
                 ? `${emergencyActive ? 'Emergency route active' : 'Route planned'} to ${selectedHospital.name}`
-                : 'Featuring hospitals and intersections from major cities worldwide'
+                : 'Featuring hospitals from major cities worldwide'
               }
             </p>
             {selectedHospital && !isRouteVisible && (
@@ -980,7 +826,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-500">
-              {trafficSignals.length} Global Intersections • Emergency Services Network
+              Global Emergency Services Network
             </p>
             {selectedHospital && routeInfo && isRouteVisible && (
               <div className="flex items-center justify-end mt-1">
@@ -988,14 +834,6 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                 <span className={`text-xs font-medium ${emergencyActive ? 'text-red-600' : 'text-blue-600'}`}>
                   Route: {routeInfo.distance} • {routeInfo.duration}
                   {emergencyActive && ' - ACTIVE'}
-                </span>
-              </div>
-            )}
-            {alertingSignals.size > 0 && (
-              <div className="flex items-center justify-end mt-1">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></div>
-                <span className="text-xs text-red-600 font-medium">
-                  {alertingSignals.size} Signal(s) Active Globally
                 </span>
               </div>
             )}

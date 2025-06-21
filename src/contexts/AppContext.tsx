@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Hospital, TrafficSignal, EmergencyStatus, Route, Notification } from '../types';
-import { mockHospitals, mockTrafficSignals } from '../utils/mockData';
+import { Hospital, Route, Notification } from '../types';
+import { mockHospitals } from '../utils/mockData';
 
 // Check if Supabase is available
 const isSupabaseAvailable = () => {
@@ -14,8 +14,6 @@ interface AppContextType {
   toggleEmergency: () => void;
   selectedHospital: Hospital | null;
   selectHospital: (hospital: Hospital | null) => void;
-  trafficSignals: TrafficSignal[];
-  updateTrafficSignal: (id: string, status: EmergencyStatus) => void;
   currentRoute: Route | null;
   setCurrentRoute: (route: Route | null) => void;
   ambulanceLocation: [number, number];
@@ -33,7 +31,6 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [emergencyActive, setEmergencyActive] = useState(false);
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
-  const [trafficSignals, setTrafficSignals] = useState<TrafficSignal[]>([]);
   const [currentRoute, setCurrentRoute] = useState<Route | null>(null);
   const [ambulanceLocation, setAmbulanceLocation] = useState<[number, number]>([40.7128, -74.0060]);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
@@ -53,20 +50,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const { 
               getAmbulance,
               getHospitals,
-              getTrafficSignals,
               getNotifications,
               subscribeToAmbulances,
-              subscribeToTrafficSignals,
               subscribeToNotifications
             } = await import('../services/supabaseService');
             
             // Load hospitals
             const hospitalsData = await getHospitals();
             setHospitals(hospitalsData);
-            
-            // Load traffic signals
-            const trafficSignalsData = await getTrafficSignals();
-            setTrafficSignals(trafficSignalsData);
             
             // Load ambulance location
             const ambulanceData = await getAmbulance();
@@ -84,18 +75,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const ambulanceSubscription = subscribeToAmbulances((payload) => {
               if (payload.eventType === 'UPDATE' && payload.new) {
                 setAmbulanceLocation([payload.new.latitude, payload.new.longitude]);
-              }
-            });
-
-            const trafficSignalSubscription = subscribeToTrafficSignals((payload) => {
-              if (payload.eventType === 'UPDATE' && payload.new) {
-                setTrafficSignals(prev => 
-                  prev.map(signal => 
-                    signal.id === payload.new.id 
-                      ? { ...signal, status: payload.new.status as EmergencyStatus }
-                      : signal
-                  )
-                );
               }
             });
 
@@ -124,7 +103,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             // Cleanup function for subscriptions
             return () => {
               ambulanceSubscription.unsubscribe();
-              trafficSignalSubscription.unsubscribe();
               notificationSubscription.unsubscribe();
             };
             
@@ -147,7 +125,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const loadMockData = () => {
       setHospitals(mockHospitals);
-      setTrafficSignals(mockTrafficSignals);
       setNotifications([]);
       setDataSource('mock');
     };
@@ -158,13 +135,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const toggleEmergency = () => {
     const newEmergencyState = !emergencyActive;
     setEmergencyActive(newEmergencyState);
-    
-    // Reset traffic signals when emergency is deactivated
-    if (!newEmergencyState) {
-      trafficSignals.forEach(signal => {
-        updateTrafficSignal(signal.id, EmergencyStatus.INACTIVE);
-      });
-    }
   };
 
   const selectHospital = (hospital: Hospital | null) => {
@@ -174,30 +144,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!hospital) {
       setCurrentRoute(null);
     }
-  };
-
-  const updateTrafficSignal = async (id: string, status: EmergencyStatus) => {
-    if (dataSource === 'supabase') {
-      try {
-        const { updateTrafficSignalStatus } = await import('../services/supabaseService');
-        await updateTrafficSignalStatus(id, status);
-        // The real-time subscription will handle updating the local state
-      } catch (error) {
-        console.error('Error updating traffic signal:', error);
-        // Fallback to local update
-        updateTrafficSignalLocal(id, status);
-      }
-    } else {
-      updateTrafficSignalLocal(id, status);
-    }
-  };
-
-  const updateTrafficSignalLocal = (id: string, status: EmergencyStatus) => {
-    setTrafficSignals(prev =>
-      prev.map(signal =>
-        signal.id === id ? { ...signal, status } : signal
-      )
-    );
   };
 
   const updateAmbulanceLocation = async (location: [number, number]) => {
@@ -245,11 +191,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Reset ambulance to original position
       await updateAmbulanceLocation([40.7128, -74.0060]);
       
-      // Reset all traffic signals to inactive
-      for (const signal of trafficSignals) {
-        await updateTrafficSignal(signal.id, EmergencyStatus.INACTIVE);
-      }
-      
       // Deactivate emergency mode
       setEmergencyActive(false);
       
@@ -266,8 +207,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toggleEmergency,
     selectedHospital,
     selectHospital,
-    trafficSignals,
-    updateTrafficSignal,
     currentRoute,
     setCurrentRoute,
     ambulanceLocation,

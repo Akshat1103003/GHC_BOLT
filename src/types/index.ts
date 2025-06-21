@@ -1,12 +1,5 @@
 // Common types for the application
 
-export enum EmergencyStatus {
-  INACTIVE = 'inactive',
-  APPROACHING = 'approaching',
-  ACTIVE = 'active',
-  PASSED = 'passed',
-}
-
 export interface Hospital {
   id: string;
   name: string;
@@ -17,13 +10,6 @@ export interface Hospital {
   emergencyReady: boolean;
 }
 
-export interface TrafficSignal {
-  id: string;
-  coordinates: [number, number]; // [latitude, longitude]
-  intersection: string;
-  status: EmergencyStatus;
-}
-
 export interface Route {
   id: string;
   startLocation: [number, number];
@@ -31,7 +17,6 @@ export interface Route {
   waypoints: [number, number][];
   distance: number; // in kilometers
   duration: number; // in minutes
-  trafficSignalsOnRoute: string[]; // IDs of traffic signals on this route
 }
 
 export interface Notification {
