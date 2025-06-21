@@ -43,13 +43,15 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   const [autocompleteService, setAutocompleteService] = useState<google.maps.places.AutocompleteService | null>(null);
   const [placesService, setPlacesService] = useState<google.maps.places.PlacesService | null>(null);
 
-  // Sync local state with context state
+  // Sync local state with context state and ensure proper initialization
   useEffect(() => {
-    if (selectedHospital && selectedHospital.id !== localSelectedHospital?.id) {
+    if (selectedHospital) {
       setLocalSelectedHospital(selectedHospital);
       console.log('🏥 Syncing hospital selection from context:', selectedHospital.name);
+    } else {
+      setLocalSelectedHospital(null);
     }
-  }, [selectedHospital, localSelectedHospital]);
+  }, [selectedHospital]);
 
   useEffect(() => {
     if (geocodingLibrary) {
@@ -481,7 +483,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
   };
 
   // Use local state as primary source for determining selection status
-  const currentlySelectedHospital = localSelectedHospital || selectedHospital;
+  const currentlySelectedHospital = localSelectedHospital;
 
   return (
     <div className={`bg-white rounded-lg shadow-md flex flex-col ${className}`}>
