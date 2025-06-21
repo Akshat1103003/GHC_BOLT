@@ -218,11 +218,10 @@ export const mockRoutes: Route[] = [
 
 export const calculateRoute = (
   startLocation: [number, number],
-  hospitalId: string
+  hospital: Hospital
 ): Route => {
-  const hospital = mockHospitals.find((h) => h.id === hospitalId);
-  if (!hospital) {
-    throw new Error('Hospital not found');
+  if (!hospital || !hospital.coordinates) {
+    throw new Error('Invalid hospital data provided');
   }
 
   // Find existing route or create optimized route

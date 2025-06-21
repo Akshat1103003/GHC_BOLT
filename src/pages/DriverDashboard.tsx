@@ -57,7 +57,7 @@ const DriverDashboard: React.FC = () => {
     
     // Clear any existing route when location changes
     if (selectedHospital) {
-      const route = calculateRoute(location, selectedHospital.id);
+      const route = calculateRoute(location, selectedHospital);
       setCurrentRoute(route);
       setRouteStatus({
         status: 'info',
@@ -72,7 +72,7 @@ const DriverDashboard: React.FC = () => {
     selectHospital(hospital);
     
     // Calculate and set the route from emergency location
-    const route = calculateRoute(emergencyLocation, hospital.id);
+    const route = calculateRoute(emergencyLocation, hospital);
     setCurrentRoute(route);
     
     // Update route status
@@ -92,7 +92,7 @@ const DriverDashboard: React.FC = () => {
       }
 
       // Calculate and set the route from emergency location
-      const route = calculateRoute(emergencyLocation, hospital.id);
+      const route = calculateRoute(emergencyLocation, hospital);
       setCurrentRoute(route);
       
       // Update route status to active
