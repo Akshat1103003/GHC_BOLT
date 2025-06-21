@@ -57,8 +57,8 @@ const SimulationPage: React.FC = () => {
     // Update app context
     selectHospital(hospital);
     
-    // Calculate route
-    const route = calculateRoute(ambulanceLocation, hospital.id);
+    // Calculate route - FIXED: Pass the full hospital object instead of hospital.id
+    const route = calculateRoute(ambulanceLocation, hospital);
     setCurrentRoute(route);
   };
 
@@ -96,8 +96,8 @@ const SimulationPage: React.FC = () => {
         }
       }
       
-      // Calculate route
-      const route = calculateRoute(ambulanceLocation, selectedHospital.id);
+      // Calculate route - FIXED: Pass the full hospital object instead of selectedHospital.id
+      const route = calculateRoute(ambulanceLocation, selectedHospital);
       
       // Start simple simulation
       const sim = startSimpleSimulation(route);
