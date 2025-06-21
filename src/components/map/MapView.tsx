@@ -16,8 +16,9 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     emergencyActive
   } = useAppContext();
 
-  // Load Google Maps geometry library
+  // Load Google Maps libraries
   const geometryLibrary = useMapsLibrary('geometry');
+  const routesLibrary = useMapsLibrary('routes');
 
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
@@ -37,9 +38,10 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     }
   }, [geometryLibrary]);
 
-  // Initialize Google Maps services
+  // Initialize Google Maps services - only after routes library is loaded
   useEffect(() => {
-    if (window.google && window.google.maps) {
+    if (routesLibrary && window.google && window.google.maps) {
+      console.log('🗺️ Routes library loaded, initializing DirectionsService...');
       setDirectionsService(new google.maps.DirectionsService());
       
       // Create directions renderer with enhanced styling
@@ -56,8 +58,9 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
       });
       
       setDirectionsRenderer(renderer);
+      console.log('✅ DirectionsService and DirectionsRenderer initialized');
     }
-  }, [emergencyActive]);
+  }, [routesLibrary, emergencyActive]);
 
   // Set up directions renderer when map is loaded
   useEffect(() => {
@@ -79,16 +82,18 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     console.log('🗺️ Creating route from ambulance to hospital...', {
       from: ambulanceLocation,
       to: selectedHospital.coordinates,
-      emergencyActive
+      emergencyActive,
+      routesLibraryLoaded: !!routesLibrary
     });
 
     // Try Google Directions API first, then fallback to custom polyline
-    if (directionsService && directionsRenderer) {
+    if (directionsService && directionsRenderer && routesLibrary) {
       createGoogleDirectionsRoute();
     } else {
+      console.log('🔄 Routes library not ready, using custom polyline route...');
       createCustomPolylineRoute();
     }
-  }, [selectedHospital, ambulanceLocation, directionsService, directionsRenderer, mapInstance, emergencyActive]);
+  }, [selectedHospital, ambulanceLocation, directionsService, directionsRenderer, mapInstance, emergencyActive, routesLibrary]);
 
   // Clear all route visualizations
   const clearAllRoutes = () => {
@@ -105,7 +110,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
 
   // Create route using Google Directions API
   const createGoogleDirectionsRoute = () => {
-    if (!directionsService || !directionsRenderer || !selectedHospital || !mapInstance) return;
+    if (!directionsService || !directionsRenderer || !selectedHospital || !mapInstance || !routesLibrary) return;
 
     const request: google.maps.DirectionsRequest = {
       origin: { lat: ambulanceLocation[0], lng: ambulanceLocation[1] },
@@ -589,6 +594,9 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
           {emergencyActive && (
             <span className="text-red-600 font-medium animate-pulse">• EMERGENCY MODE</span>
           )}
+          {!routesLibrary && (
+            <span className="text-amber-600 font-medium text-xs">• Loading Maps Services...</span>
+          )}
         </div>
         <div className="flex items-center space-x-4 text-xs">
           <div className="flex items-center">
@@ -813,7 +821,12 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                 : 'Featuring hospitals from major cities worldwide'
               }
             </p>
-            {selectedHospital && !isRouteVisible && (
+            {!routesLibrary && (
+              <p className="text-amber-600 font-medium text-xs mt-1 animate-pulse">
+                ⚠️ Loading Google Maps routing services...
+              </p>
+            )}
+            {selectedHospital && !isRouteVisible && routesLibrary && (
               <p className="text-amber-600 font-medium text-xs mt-1 animate-pulse">
                 ⚠️ Creating route path visualization...
               </p>
