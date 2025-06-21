@@ -1,6 +1,6 @@
-import { Route, TrafficSignal, EmergencyStatus } from '../types';
-import { notifyTrafficSignal, notifyHospital } from './notificationService';
-import { updateAmbulanceLocation, updateTrafficSignalStatus } from './supabaseService';
+import { Route } from '../types';
+import { notifyHospital } from './notificationService';
+import { updateAmbulanceLocation } from './supabaseService';
 
 // Use a proper UUID for the default ambulance ID
 const DEFAULT_AMBULANCE_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -18,34 +18,16 @@ const calculateDistance = (point1: [number, number], point2: [number, number]): 
   return R * c;
 };
 
-// Simulates the ambulance moving along a route with enhanced traffic signal detection and configurable speed
+// Simulates the ambulance moving along a route with configurable speed
 export const simulateAmbulanceMovement = (
   route: Route,
-  trafficSignals: TrafficSignal[],
   onLocationUpdate: (location: [number, number]) => void,
-  onTrafficSignalUpdate: (id: string, status: EmergencyStatus) => void,
   onComplete: () => void,
   speedFactor: number = 1 // Speed multiplier (1 = normal, 2 = 2x faster, 0.5 = half speed)
 ) => {
   const waypoints = [...route.waypoints];
   let currentWaypointIndex = 0;
   let isRunning = true;
-  
-  // Enhanced traffic signal tracking
-  const signalStates = new Map<string, { 
-    status: EmergencyStatus, 
-    lastDistance: number,
-    notified: boolean 
-  }>();
-  
-  // Initialize signal states
-  trafficSignals.forEach(signal => {
-    signalStates.set(signal.id, {
-      status: EmergencyStatus.INACTIVE,
-      lastDistance: Infinity,
-      notified: false
-    });
-  });
   
   // Set initial position to first waypoint
   onLocationUpdate(waypoints[0]);
@@ -60,12 +42,8 @@ export const simulateAmbulanceMovement = (
     currentWaypointIndex++;
     
     if (currentWaypointIndex >= waypoints.length) {
-      // Route completed - reset all traffic signals
+      // Route completed
       console.log('🏥 Ambulance arrived at destination');
-      for (const signal of trafficSignals) {
-        await updateTrafficSignalStatus(signal.id, EmergencyStatus.PASSED);
-        onTrafficSignalUpdate(signal.id, EmergencyStatus.PASSED);
-      }
       onComplete();
       return;
     }
@@ -80,58 +58,6 @@ export const simulateAmbulanceMovement = (
       await updateAmbulanceLocation(DEFAULT_AMBULANCE_ID, currentPosition[0], currentPosition[1], 'en_route');
     } catch (error) {
       console.error('Error updating ambulance location in database:', error);
-    }
-    
-    // Enhanced traffic signal detection and status updates
-    for (const signal of trafficSignals) {
-      const distance = calculateDistance(currentPosition, signal.coordinates);
-      const signalState = signalStates.get(signal.id)!;
-      
-      // Update signal status based on distance and previous state
-      let newStatus = signalState.status;
-      
-      if (distance <= 0.1) {
-        // Ambulance is at the traffic signal (within 100m)
-        newStatus = EmergencyStatus.ACTIVE;
-      } else if (distance <= 0.5 && signalState.lastDistance > distance) {
-        // Ambulance is approaching (within 500m and getting closer)
-        newStatus = EmergencyStatus.APPROACHING;
-      } else if (distance <= 2.0 && signalState.lastDistance > distance) {
-        // Ambulance is within 2km range and approaching
-        if (signalState.status === EmergencyStatus.INACTIVE) {
-          newStatus = EmergencyStatus.APPROACHING;
-        }
-      } else if (distance > 0.5 && signalState.lastDistance < distance && signalState.status !== EmergencyStatus.INACTIVE) {
-        // Ambulance is moving away from the signal
-        newStatus = EmergencyStatus.PASSED;
-      }
-      
-      // Update signal state if changed
-      if (newStatus !== signalState.status) {
-        signalState.status = newStatus;
-        onTrafficSignalUpdate(signal.id, newStatus);
-        
-        console.log(`🚦 Traffic signal ${signal.intersection}: ${newStatus.toUpperCase()} (${distance.toFixed(1)}km away)`);
-        
-        // Update in database
-        try {
-          await updateTrafficSignalStatus(signal.id, newStatus);
-        } catch (error) {
-          console.error('Error updating traffic signal in database:', error);
-        }
-        
-        // Notify traffic signal system
-        if (newStatus === EmergencyStatus.APPROACHING) {
-          await notifyTrafficSignal(signal, newStatus, Math.floor(distance * 60)); // ETA in seconds
-        } else if (newStatus === EmergencyStatus.ACTIVE) {
-          await notifyTrafficSignal(signal, newStatus, 0);
-        } else if (newStatus === EmergencyStatus.PASSED) {
-          await notifyTrafficSignal(signal, newStatus, 0);
-        }
-      }
-      
-      // Update last known distance
-      signalState.lastDistance = distance;
     }
     
     // Calculate time to next waypoint with configurable speed
