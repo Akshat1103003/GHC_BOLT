@@ -8,6 +8,8 @@ export interface Hospital {
   phone: string;
   specialties: string[];
   emergencyReady: boolean;
+  isSearchResult?: boolean;
+  isNearbyResult?: boolean;
 }
 
 export interface Route {
