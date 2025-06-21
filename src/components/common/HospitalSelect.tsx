@@ -183,16 +183,16 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     detectCity();
   }, [geocoder, currentLocation, geocodedSearchLocation]);
 
-  // Get autocomplete suggestions - RESTRICTED TO HOSPITALS ONLY
+  // Enhanced autocomplete for both hospitals and locations
   useEffect(() => {
-    if (!autocompleteService || !searchTerm.trim() || searchTerm.length < 3) {
+    if (!autocompleteService || !searchTerm.trim() || searchTerm.length < 2) {
       setSearchSuggestions([]);
       setShowSuggestions(false);
       return;
     }
 
     const timeoutId = setTimeout(() => {
-      // First try to get hospital-specific suggestions
+      // Search for hospitals first
       autocompleteService.getPlacePredictions(
         {
           input: searchTerm,
@@ -263,6 +263,53 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     }
   }, [searchTerm, onSearchLocationChange]);
 
+  // Enhanced suggestion click handler that can handle both hospitals and locations
+  const handleSuggestionClick = async (suggestion: google.maps.places.AutocompletePrediction) => {
+    setSearchTerm(suggestion.description);
+    setShowSuggestions(false);
+    
+    // Check if this is a hospital suggestion
+    const isHospital = suggestion.types?.includes('hospital') || 
+                     suggestion.description.toLowerCase().includes('hospital') ||
+                     suggestion.description.toLowerCase().includes('medical') ||
+                     suggestion.description.toLowerCase().includes('clinic');
+    
+    if (isHospital && placesService) {
+      // This is a hospital - get details and select it
+      const request = {
+        placeId: suggestion.place_id,
+        fields: ['place_id', 'name', 'formatted_address', 'geometry', 'formatted_phone_number', 'types']
+      };
+      
+      placesService.getDetails(request, (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+          const hospital: Hospital = {
+            id: place.place_id || `search-${Date.now()}`,
+            name: place.name || 'Unknown Hospital',
+            address: place.formatted_address || 'Address not available',
+            coordinates: [
+              place.geometry?.location?.lat() || 0,
+              place.geometry?.location?.lng() || 0
+            ] as [number, number],
+            phone: place.formatted_phone_number || 'Phone not available',
+            specialties: ['Emergency', 'General Medicine'],
+            emergencyReady: true,
+            isSearchResult: true
+          };
+          
+          // Immediately select this hospital
+          setLocalSelectedHospital(hospital);
+          onSelect(hospital);
+          
+          console.log('🏥 Hospital selected from search:', hospital.name);
+        }
+      });
+    } else {
+      // This is a location - geocode it for location search
+      performGeocodingByPlaceId(suggestion.place_id);
+    }
+  };
+
   const performGeocodingByPlaceId = async (placeId: string) => {
     if (!geocoder) return;
 
@@ -305,13 +352,6 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
     }
   };
 
-  const handleSuggestionClick = (suggestion: google.maps.places.AutocompletePrediction) => {
-    setSearchTerm(suggestion.description);
-    setShowSuggestions(false);
-    // Use place ID for more reliable geocoding instead of re-geocoding the description
-    performGeocodingByPlaceId(suggestion.place_id);
-  };
-
   // Enhanced hospital selection handler
   const handleHospitalClick = (hospital: Hospital) => {
     console.log('🏥 Hospital clicked:', hospital.name);
@@ -331,8 +371,8 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
 
   // Handle hospital confirmation with improved validation
   const handleConfirmHospital = async () => {
-    // Use local state as primary source, fallback to context state
-    const hospitalToConfirm = localSelectedHospital || selectedHospital;
+    // Use local state as primary source
+    const hospitalToConfirm = localSelectedHospital;
     
     console.log('🏥 Confirm button clicked:', {
       localSelectedHospital: localSelectedHospital?.name || 'None',
@@ -540,28 +580,36 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
               <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-500 animate-spin" size={18} />
             )}
             
-            {/* Search suggestions dropdown - HOSPITAL FOCUSED */}
+            {/* Enhanced search suggestions dropdown - HOSPITAL FOCUSED */}
             {showSuggestions && searchSuggestions.length > 0 && !apiError && (
               <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto mt-1">
-                {searchSuggestions.map((suggestion, index) => (
-                  <button
-                    key={suggestion.place_id}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                  >
-                    <div className="flex items-center">
-                      <MapPin size={14} className="text-red-400 mr-2 flex-shrink-0" />
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {suggestion.structured_formatting.main_text}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {suggestion.structured_formatting.secondary_text}
+                {searchSuggestions.map((suggestion, index) => {
+                  const isHospital = suggestion.types?.includes('hospital') || 
+                                   suggestion.description.toLowerCase().includes('hospital') ||
+                                   suggestion.description.toLowerCase().includes('medical') ||
+                                   suggestion.description.toLowerCase().includes('clinic');
+                  
+                  return (
+                    <button
+                      key={suggestion.place_id}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="flex items-center">
+                        <MapPin size={14} className={`mr-2 flex-shrink-0 ${isHospital ? 'text-blue-500' : 'text-gray-400'}`} />
+                        <div>
+                          <div className={`text-sm font-medium ${isHospital ? 'text-blue-900' : 'text-gray-900'}`}>
+                            {suggestion.structured_formatting.main_text}
+                            {isHospital && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-1 rounded">Hospital</span>}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {suggestion.structured_formatting.secondary_text}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -608,7 +656,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
             <div className="flex items-center text-sm text-yellow-800">
               <AlertCircle size={14} className="mr-2 flex-shrink-0" />
               <span>
-                <strong>Step 1:</strong> Click on a hospital from the list below to select it.
+                <strong>Step 1:</strong> Search for a hospital or click on one from the list below to select it.
                 <br />
                 <strong>Step 2:</strong> Then click the "Confirm Hospital" button above to create the route.
               </span>
@@ -736,6 +784,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                         {within50km && <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">Within 50km</span>}
                         {inDetectedCity && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">In {detectedCity}</span>}
                         {hospital.isNearbyResult && <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">Places API</span>}
+                        {hospital.isSearchResult && <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full">Search Result</span>}
                       </h3>
                       
                       <div className="mt-1 flex items-center text-sm text-gray-500">
@@ -807,7 +856,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
                       </p>
                       <p className="text-xs text-blue-600 mt-1">
                         {emergencyActive 
-                          ? 'Route path visible on map • Real-time signal coordination active'
+                          ? 'Route path visible on map • Real-time coordination active'
                           : 'Route path will be displayed on the map after clicking the confirmation button'
                         }
                       </p>
@@ -844,7 +893,7 @@ const HospitalSelect: React.FC<HospitalSelectProps> = ({
           )}
           {!currentlySelectedHospital && (
             <span className="block mt-1 text-amber-600 font-medium">
-              👆 Click on a hospital below, then click "Confirm Hospital" button to confirm
+              👆 Search for a hospital or click on one below, then click "Confirm Hospital" button to confirm
             </span>
           )}
           {currentlySelectedHospital && !emergencyActive && (
