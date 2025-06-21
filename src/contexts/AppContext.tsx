@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Hospital, Route, Notification } from '../types';
-import { mockHospitals } from '../utils/mockData';
+import { mockHospitals, calculateRoute } from '../utils/mockData';
 
 // Check if Supabase is available
 const isSupabaseAvailable = () => {
@@ -138,10 +138,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const selectHospital = (hospital: Hospital | null) => {
+    console.log('🏥 AppContext: Selecting hospital:', hospital?.name || 'None');
     setSelectedHospital(hospital);
     
-    // Clear route when hospital is deselected
-    if (!hospital) {
+    if (hospital) {
+      // Automatically create route when hospital is selected
+      try {
+        const route = calculateRoute(ambulanceLocation, hospital);
+        setCurrentRoute(route);
+        console.log('🗺️ AppContext: Route created automatically');
+      } catch (error) {
+        console.error('❌ AppContext: Failed to create route:', error);
+        setCurrentRoute(null);
+      }
+    } else {
+      // Clear route when hospital is deselected
       setCurrentRoute(null);
     }
   };
@@ -159,6 +170,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     } else {
       setAmbulanceLocation(location);
+    }
+
+    // Update route if hospital is selected
+    if (selectedHospital) {
+      try {
+        const route = calculateRoute(location, selectedHospital);
+        setCurrentRoute(route);
+        console.log('🗺️ AppContext: Route updated for new ambulance location');
+      } catch (error) {
+        console.error('❌ AppContext: Failed to update route:', error);
+      }
     }
   };
 
@@ -197,6 +219,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Clear selected hospital and route
       setSelectedHospital(null);
       setCurrentRoute(null);
+      
+      console.log('🔄 System reset completed');
     } catch (error) {
       console.error('Error resetting system:', error);
     }
@@ -225,7 +249,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 export const useAppContext = (): AppContextType => {
   const context = useContext(AppContext);
   if (context === undefined) {
-    throw new Error('useAppContext must be used within an AppProvider');
+    throw new error('useAppContext must be used within an AppProvider');
   }
   return context;
 };

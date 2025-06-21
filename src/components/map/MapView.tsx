@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Map, Marker, InfoWindow, useMapsLibrary } from '@vis.gl/react-google-maps';
-import { Ambulance, Building2, MapPin, Navigation, Globe, Search, Route } from 'lucide-react';
+import { Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
+import { Ambulance, Building2, MapPin, Navigation, Globe, Search, Route as RouteIcon } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
+import RouteRenderer from './RouteRenderer';
+import { calculateDistance } from '../../utils/routeUtils';
 
 interface MapViewProps {
   searchLocation?: [number, number] | null;
@@ -19,200 +21,8 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
   // State management
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
-  const [routePolyline, setRoutePolyline] = useState<google.maps.Polyline | null>(null);
   const [routeInfo, setRouteInfo] = useState<{distance: string, duration: string} | null>(null);
   const [isRouteVisible, setIsRouteVisible] = useState(false);
-  const [isCreatingRoute, setIsCreatingRoute] = useState(false);
-
-  // Calculate distance between two points (Haversine formula)
-  const calculateDistance = (point1: [number, number], point2: [number, number]): number => {
-    const R = 6371; // Earth's radius in kilometers
-    const dLat = (point2[0] - point1[0]) * Math.PI / 180;
-    const dLon = (point2[1] - point1[1]) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(point1[0] * Math.PI / 180) * Math.cos(point2[0] * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
-
-  // Clear all existing routes
-  const clearAllRoutes = () => {
-    console.log('🧹 Clearing all routes...');
-    
-    if (routePolyline) {
-      try {
-        routePolyline.setMap(null);
-        // Also clear shadow if it exists
-        if ((routePolyline as any).shadowPolyline) {
-          (routePolyline as any).shadowPolyline.setMap(null);
-        }
-        setRoutePolyline(null);
-        console.log('✅ Route polyline cleared');
-      } catch (error) {
-        console.log('⚠️ Error clearing route polyline:', error);
-      }
-    }
-    
-    setRouteInfo(null);
-    setIsRouteVisible(false);
-    setIsCreatingRoute(false);
-  };
-
-  // Create a simple, reliable polyline route
-  const createSimpleRoute = () => {
-    if (!selectedHospital || !mapInstance) {
-      console.log('❌ Missing dependencies for route creation');
-      return;
-    }
-
-    console.log('🔄 Creating simple polyline route...');
-    setIsCreatingRoute(true);
-
-    // Clear existing routes first
-    clearAllRoutes();
-
-    try {
-      const startPoint = { lat: ambulanceLocation[0], lng: ambulanceLocation[1] };
-      const endPoint = { lat: selectedHospital.coordinates[0], lng: selectedHospital.coordinates[1] };
-      
-      // Create intermediate waypoints for a curved path
-      const midLat = (startPoint.lat + endPoint.lat) / 2;
-      const midLng = (startPoint.lng + endPoint.lng) / 2;
-      
-      // Add a slight curve to make it look more realistic
-      const curveOffset = 0.01; // Adjust this for more/less curve
-      const curveLat = midLat + (Math.random() - 0.5) * curveOffset;
-      const curveLng = midLng + (Math.random() - 0.5) * curveOffset;
-      
-      const path = [
-        startPoint,
-        { lat: curveLat, lng: curveLng },
-        endPoint
-      ];
-
-      const routeColor = emergencyActive ? '#DC2626' : '#2563EB';
-      const routeWeight = emergencyActive ? 8 : 6;
-
-      // Create shadow polyline for better visibility
-      const shadowPolyline = new google.maps.Polyline({
-        path,
-        strokeColor: '#000000',
-        strokeWeight: routeWeight + 4,
-        strokeOpacity: 0.3,
-        zIndex: 999,
-        map: mapInstance,
-      });
-
-      // Create main route polyline
-      const mainPolyline = new google.maps.Polyline({
-        path,
-        strokeColor: routeColor,
-        strokeWeight: routeWeight,
-        strokeOpacity: 0.9,
-        zIndex: 1000,
-        map: mapInstance,
-        icons: [{
-          icon: {
-            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-            scale: 3,
-            strokeColor: '#FFFFFF',
-            strokeWeight: 1,
-            fillColor: routeColor,
-            fillOpacity: 1,
-          },
-          offset: '0%',
-          repeat: '20%'
-        }]
-      });
-
-      setRoutePolyline(mainPolyline);
-
-      // Store shadow for cleanup
-      (mainPolyline as any).shadowPolyline = shadowPolyline;
-
-      // Calculate distance and duration
-      const distance = calculateDistance(ambulanceLocation, selectedHospital.coordinates);
-      const duration = Math.ceil(distance / 0.5); // 30 km/h average
-      
-      setRouteInfo({
-        distance: `${distance.toFixed(1)} km`,
-        duration: `${duration} min`
-      });
-
-      // Fit map bounds to show the entire route
-      const bounds = new google.maps.LatLngBounds();
-      bounds.extend(startPoint);
-      bounds.extend(endPoint);
-      mapInstance.fitBounds(bounds, { 
-        padding: { top: 80, right: 80, bottom: 80, left: 80 }
-      });
-
-      setIsRouteVisible(true);
-      setIsCreatingRoute(false);
-
-      console.log('✅ Simple route created successfully');
-      showRouteNotification(`${distance.toFixed(1)} km`, `${duration} min`);
-      
-    } catch (error) {
-      console.error('❌ Failed to create simple route:', error);
-      setIsRouteVisible(false);
-      setIsCreatingRoute(false);
-    }
-  };
-
-  // Show route creation notification
-  const showRouteNotification = (distance: string, duration: string) => {
-    const notificationDiv = document.createElement('div');
-    notificationDiv.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-bounce
-      ${emergencyActive ? 'bg-red-600' : 'bg-blue-600'} text-white p-4 rounded-lg shadow-lg border-2 border-white`;
-    notificationDiv.innerHTML = `
-      <div class="flex items-center">
-        <div class="mr-3 text-2xl">${emergencyActive ? '🚨' : '🗺️'}</div>
-        <div>
-          <div class="font-bold text-lg">${emergencyActive ? 'Emergency Route ACTIVE!' : 'Route Path Created!'}</div>
-          <div class="text-sm">${distance} • ${duration} ${emergencyActive ? '(Emergency Priority)' : ''}</div>
-          <div class="text-xs mt-1 opacity-90">Route path is now visible on the map</div>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(notificationDiv);
-    
-    // Remove notification after 4 seconds
-    setTimeout(() => {
-      if (document.body.contains(notificationDiv)) {
-        notificationDiv.style.transition = 'opacity 0.5s ease-out';
-        notificationDiv.style.opacity = '0';
-        setTimeout(() => {
-          if (document.body.contains(notificationDiv)) {
-            document.body.removeChild(notificationDiv);
-          }
-        }, 500);
-      }
-    }, 4000);
-  };
-
-  // Create route when hospital is selected
-  useEffect(() => {
-    if (!selectedHospital || !mapInstance) {
-      clearAllRoutes();
-      return;
-    }
-
-    console.log('🗺️ Hospital selected, creating route...', {
-      from: ambulanceLocation,
-      to: selectedHospital.coordinates,
-      emergencyActive
-    });
-
-    // Small delay to ensure map is ready
-    setTimeout(() => {
-      createSimpleRoute();
-    }, 100);
-
-  }, [selectedHospital, ambulanceLocation, mapInstance, emergencyActive]);
 
   // Get location name from coordinates
   const getLocationName = (coordinates: [number, number]) => {
@@ -321,6 +131,53 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     console.log('🗺️ Map loaded successfully');
   }, []);
 
+  // Handle route creation
+  const handleRouteCreated = (info: { distance: string; duration: string }) => {
+    setRouteInfo(info);
+    setIsRouteVisible(true);
+    
+    // Show notification
+    showRouteNotification(info.distance, info.duration);
+  };
+
+  // Handle route cleared
+  const handleRouteCleared = () => {
+    setRouteInfo(null);
+    setIsRouteVisible(false);
+  };
+
+  // Show route creation notification
+  const showRouteNotification = (distance: string, duration: string) => {
+    const notificationDiv = document.createElement('div');
+    notificationDiv.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-bounce
+      ${emergencyActive ? 'bg-red-600' : 'bg-blue-600'} text-white p-4 rounded-lg shadow-lg border-2 border-white`;
+    notificationDiv.innerHTML = `
+      <div class="flex items-center">
+        <div class="mr-3 text-2xl">${emergencyActive ? '🚨' : '🗺️'}</div>
+        <div>
+          <div class="font-bold text-lg">${emergencyActive ? 'Emergency Route ACTIVE!' : 'Route Path Created!'}</div>
+          <div class="text-sm">${distance} • ${duration} ${emergencyActive ? '(Emergency Priority)' : ''}</div>
+          <div class="text-xs mt-1 opacity-90">Route path is now visible on the map</div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(notificationDiv);
+    
+    // Remove notification after 4 seconds
+    setTimeout(() => {
+      if (document.body.contains(notificationDiv)) {
+        notificationDiv.style.transition = 'opacity 0.5s ease-out';
+        notificationDiv.style.opacity = '0';
+        setTimeout(() => {
+          if (document.body.contains(notificationDiv)) {
+            document.body.removeChild(notificationDiv);
+          }
+        }, 500);
+      }
+    }, 4000);
+  };
+
   // Update map view when emergency is active or search location changes
   useEffect(() => {
     if (mapInstance) {
@@ -351,38 +208,6 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     return 10;
   };
 
-  // Cleanup when component unmounts
-  useEffect(() => {
-    return () => {
-      clearAllRoutes();
-    };
-  }, []);
-
-  // Debug function for troubleshooting
-  const debugRoute = () => {
-    console.log('🐛 Route Debug Info:', {
-      selectedHospital: !!selectedHospital,
-      mapInstance: !!mapInstance,
-      routePolyline: !!routePolyline,
-      isRouteVisible,
-      isCreatingRoute,
-      routeInfo,
-      ambulanceLocation,
-      hospitalCoordinates: selectedHospital?.coordinates
-    });
-  };
-
-  // Force recreate route for debugging
-  const forceRecreateRoute = () => {
-    console.log('🔄 Force recreating route...');
-    clearAllRoutes();
-    setTimeout(() => {
-      if (selectedHospital && mapInstance) {
-        createSimpleRoute();
-      }
-    }, 500);
-  };
-
   return (
     <div className={`rounded-lg overflow-hidden shadow-lg ${className}`}>
       {/* Map Controls */}
@@ -395,14 +220,10 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
           )}
           {selectedHospital && (
             <span className={`font-medium flex items-center ${
-              isCreatingRoute ? 'text-amber-600' : 
-              isRouteVisible ? 'text-green-600' : 'text-red-600'
+              isRouteVisible ? 'text-green-600' : 'text-amber-600'
             }`}>
-              <Route size={14} className="mr-1" />
-              • Route {
-                isCreatingRoute ? 'Creating...' :
-                isRouteVisible ? 'Visible' : 'Failed'
-              }
+              <RouteIcon size={14} className="mr-1" />
+              • Route {isRouteVisible ? 'Visible' : 'Creating...'}
               {routeInfo && isRouteVisible && (
                 <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                   {routeInfo.distance} • {routeInfo.duration}
@@ -437,21 +258,6 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
           )}
         </div>
       </div>
-
-      {/* Debug Controls - Uncomment for troubleshooting */}
-      {/* 
-      <div className="p-2 bg-yellow-50 border border-yellow-200 flex gap-2">
-        <button onClick={debugRoute} className="px-3 py-1 bg-blue-500 text-white rounded text-xs">
-          Debug Route
-        </button>
-        <button onClick={forceRecreateRoute} className="px-3 py-1 bg-green-500 text-white rounded text-xs">
-          Force Recreate
-        </button>
-        <span className="text-xs text-gray-600 flex items-center">
-          Route Status: {isCreatingRoute ? 'Creating...' : isRouteVisible ? 'Visible' : 'None'}
-        </span>
-      </div>
-      */}
       
       <Map
         style={{ height: '500px', width: '100%' }}
@@ -476,6 +282,15 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
           fullscreenControl: true
         }}
       >
+        {/* Route Renderer Component */}
+        <RouteRenderer
+          map={mapInstance}
+          route={currentRoute}
+          emergencyActive={emergencyActive}
+          onRouteCreated={handleRouteCreated}
+          onRouteCleared={handleRouteCleared}
+        />
+
         {/* Search location marker */}
         {searchLocation && (
           <>
@@ -602,14 +417,9 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                         Route: {routeInfo.distance} • {routeInfo.duration}
                       </p>
                     )}
-                    {isCreatingRoute && (
+                    {!isRouteVisible && selectedHospital && (
                       <p className="text-xs text-amber-600 font-medium mt-1 animate-pulse">
                         ⚠️ Creating route path...
-                      </p>
-                    )}
-                    {!isRouteVisible && !isCreatingRoute && selectedHospital && (
-                      <p className="text-xs text-red-600 font-medium mt-1">
-                        ❌ Route creation failed - check console
                       </p>
                     )}
                   </div>
@@ -636,19 +446,14 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                 : 'Featuring hospitals from major cities worldwide'
               }
             </p>
-            {isCreatingRoute && (
-              <p className="text-amber-600 font-medium text-xs mt-1 animate-pulse">
-                ⚠️ Creating route path visualization...
-              </p>
-            )}
             {selectedHospital && isRouteVisible && (
               <p className="text-green-600 font-medium text-xs mt-1">
                 ✅ Route path visible on map
               </p>
             )}
-            {selectedHospital && !isRouteVisible && !isCreatingRoute && (
-              <p className="text-red-600 font-medium text-xs mt-1">
-                ❌ Route creation failed - please try selecting the hospital again
+            {selectedHospital && !isRouteVisible && (
+              <p className="text-amber-600 font-medium text-xs mt-1 animate-pulse">
+                ⚠️ Creating route path visualization...
               </p>
             )}
           </div>

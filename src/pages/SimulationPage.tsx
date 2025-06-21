@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, RotateCcw, AlertCircle, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, RotateCcw, AlertCircle } from 'lucide-react';
 import MapView from '../components/map/MapView';
 import HospitalSelect from '../components/common/HospitalSelect';
 import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import { useAppContext } from '../contexts/AppContext';
-import { calculateRoute } from '../utils/mockData';
 
 const SimulationPage: React.FC = () => {
   const {
@@ -15,7 +14,7 @@ const SimulationPage: React.FC = () => {
     selectHospital,
     toggleEmergency,
     emergencyActive,
-    setCurrentRoute,
+    currentRoute,
     hospitals,
     isLoading,
   } = useAppContext();
@@ -27,7 +26,6 @@ const SimulationPage: React.FC = () => {
   const [simulationSpeed, setSimulationSpeed] = useState(1);
   const [hospitalStatus, setHospitalStatus] = useState('Waiting for notification');
   const [hospitalPreparationProgress, setHospitalPreparationProgress] = useState(0);
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [searchLocationForMap, setSearchLocationForMap] = useState<[number, number] | null>(null);
 
   // Simulation steps description
@@ -54,12 +52,9 @@ const SimulationPage: React.FC = () => {
     setHospitalStatus('Waiting for notification');
     setHospitalPreparationProgress(0);
     
-    // Update app context
+    // Update app context - route will be created automatically
     selectHospital(hospital);
-    
-    // Calculate route - FIXED: Pass the full hospital object instead of hospital.id
-    const route = calculateRoute(ambulanceLocation, hospital);
-    setCurrentRoute(route);
+    console.log('🏥 SimulationPage: Hospital selected:', hospital.name);
   };
 
   // Handle search location change from HospitalSelect
@@ -96,17 +91,14 @@ const SimulationPage: React.FC = () => {
         }
       }
       
-      // Calculate route - FIXED: Pass the full hospital object instead of selectedHospital.id
-      const route = calculateRoute(ambulanceLocation, selectedHospital);
-      
       // Start simple simulation
-      const sim = startSimpleSimulation(route);
+      const sim = startSimpleSimulation();
       setSimulation(sim);
     }
   };
 
-  // Simple simulation without traffic signals
-  const startSimpleSimulation = (route: any) => {
+  // Simple simulation without complex movement
+  const startSimpleSimulation = () => {
     let currentStep = simulationStep;
     let isRunning = true;
     
@@ -177,7 +169,6 @@ const SimulationPage: React.FC = () => {
     
     // Clear selected hospital
     selectHospital(null);
-    setCurrentRoute(null);
   };
 
   if (isLoading) {
@@ -326,20 +317,20 @@ const SimulationPage: React.FC = () => {
                 <li>Search for a location or select a destination hospital from the list</li>
                 <li>Press the Start button to begin the simulation</li>
                 <li>Adjust the simulation speed using the slider (0.5x to 3x speed)</li>
-                <li>Watch as the ambulance route is planned to the hospital</li>
+                <li>Watch as the ambulance route is displayed on the map</li>
                 <li>The hospital will prepare for the patient's arrival</li>
                 <li>Monitor real-time updates in the status cards</li>
               </ol>
               
               <div className="mt-4 p-4 bg-blue-50 rounded-md">
                 <p className="text-sm text-blue-800">
-                  <strong>Speed Control:</strong> Use the simulation speed slider to control how fast the simulation progresses. This is perfect for demonstrations or detailed analysis of the emergency response process.
+                  <strong>Route Visualization:</strong> The system automatically creates and displays route paths on the map when you select a hospital. Routes are optimized for emergency vehicles with realistic waypoints and timing.
                 </p>
               </div>
               
               <div className="mt-4 p-4 bg-green-50 rounded-md">
                 <p className="text-sm text-green-800">
-                  <strong>Real-time Data:</strong> This system uses real-time data from Supabase. All changes are synchronized across all connected clients in real-time.
+                  <strong>Real-time Data:</strong> This system can integrate with live databases. All changes are synchronized across connected clients in real-time when using Supabase backend.
                 </p>
               </div>
             </div>

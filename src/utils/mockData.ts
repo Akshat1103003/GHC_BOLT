@@ -1,4 +1,5 @@
 import { Hospital, Route } from '../types';
+import { createRoute } from './routeUtils';
 
 // Global hospitals from various cities and countries with actual coordinates
 export const mockHospitals: Hospital[] = [
@@ -187,175 +188,53 @@ export const mockHospitals: Hospital[] = [
   },
 ];
 
-export const mockRoutes: Route[] = [
-  {
-    id: 'r1',
-    startLocation: [40.7128, -74.0060], // NYC Financial District
-    endLocation: [40.7677, -73.9537], // NewYork-Presbyterian Hospital
-    waypoints: [
-      [40.7128, -74.0060],
-      [40.7282, -73.9942],
-      [40.7359, -73.9911],
-      [40.7505, -73.9934],
-      [40.7677, -73.9537],
-    ],
-    distance: 8.5,
-    duration: 15,
-  },
-  {
-    id: 'r2',
-    startLocation: [51.5074, -0.1278], // London Westminster
-    endLocation: [51.5174, -0.1006], // St. Bartholomew's Hospital
-    waypoints: [
-      [51.5074, -0.1278],
-      [51.5155, -0.0922],
-      [51.5174, -0.1006],
-    ],
-    distance: 4.2,
-    duration: 12,
-  },
-];
-
+// Use the new route creation utility
 export const calculateRoute = (
   startLocation: [number, number],
   hospital: Hospital
 ): Route => {
-  if (!hospital || !hospital.coordinates) {
-    throw new Error('Invalid hospital data provided');
-  }
-
-  // Find existing route or create optimized route
-  const existingRoute = mockRoutes.find(r => 
-    Math.abs(r.endLocation[0] - hospital.coordinates[0]) < 0.001 &&
-    Math.abs(r.endLocation[1] - hospital.coordinates[1]) < 0.001
-  );
-
-  if (existingRoute) {
-    // Update start location to current ambulance position
-    const updatedRoute = {
-      ...existingRoute,
-      startLocation,
-      waypoints: [startLocation, ...existingRoute.waypoints.slice(1)]
-    };
-    return updatedRoute;
-  }
-
-  // Create optimized route
-  const routeWaypoints = generateOptimalWaypoints(startLocation, hospital.coordinates);
-
-  const directRoute: Route = {
-    id: `r-${Date.now()}`,
-    startLocation,
-    endLocation: hospital.coordinates,
-    waypoints: routeWaypoints,
-    distance: calculateTotalDistance(routeWaypoints),
-    duration: calculateDuration(startLocation, hospital.coordinates),
-  };
-
-  console.log(`🗺️ Route calculated: ${directRoute.distance.toFixed(1)}km, ${Math.ceil(directRoute.duration)} minutes`);
-
-  return directRoute;
+  return createRoute(startLocation, hospital);
 };
 
-// Generate optimal waypoints
-const generateOptimalWaypoints = (
-  start: [number, number],
-  end: [number, number]
-): [number, number][] => {
-  const waypoints: [number, number][] = [start];
-  
-  // Create intermediate waypoints for a more realistic route
-  const numWaypoints = 3;
-  
-  for (let i = 1; i <= numWaypoints; i++) {
-    const ratio = i / (numWaypoints + 1);
-    const lat = start[0] + (end[0] - start[0]) * ratio;
-    const lng = start[1] + (end[1] - start[1]) * ratio;
-    
-    // Add slight curve to make route look more realistic
-    const curveOffset = Math.sin(ratio * Math.PI) * 0.002;
-    
-    waypoints.push([lat + curveOffset, lng + curveOffset]);
-  }
-  
-  waypoints.push(end);
-  
-  return waypoints;
-};
-
-// Calculate total distance of route
-const calculateTotalDistance = (waypoints: [number, number][]): number => {
-  let totalDistance = 0;
-  for (let i = 0; i < waypoints.length - 1; i++) {
-    totalDistance += calculateDistance(waypoints[i], waypoints[i + 1]);
-  }
-  return totalDistance;
-};
-
-// Enhanced distance calculation using Haversine formula
-export const calculateDistance = (
-  point1: [number, number],
-  point2: [number, number]
-): number => {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = (point2[0] - point1[0]) * Math.PI / 180;
-  const dLon = (point2[1] - point1[1]) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(point1[0] * Math.PI / 180) * Math.cos(point2[0] * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-};
-
-// Enhanced duration calculation for emergency vehicles in global cities
-export const calculateDuration = (
-  point1: [number, number],
-  point2: [number, number]
-): number => {
-  // Emergency vehicles globally now average 30-35 km/h with traffic priority
-  const distance = calculateDistance(point1, point2);
-  const baseSpeed = 35; // km/h
-  
-  // Add time penalties for traffic density in major cities
-  const cityTrafficPenalty = 1.4; // 40% slower due to dense traffic
-  
-  return (distance / baseSpeed) * 60 * cityTrafficPenalty; // Convert to minutes
-};
+// Re-export utilities for backward compatibility
+export { calculateDistance, calculateDuration } from './routeUtils';
 
 // Get real-time traffic data (placeholder for future integration)
 export const getRealTimeTrafficData = async (coordinates: [number, number][]): Promise<any> => {
-  // This would integrate with services like Google Maps Traffic API, HERE Traffic API, etc.
-  // For now, return mock data that simulates real traffic conditions
-  
   return {
-    congestionLevel: Math.random() * 100, // 0-100% congestion
-    averageSpeed: 30 + Math.random() * 40, // 30-70 km/h
+    congestionLevel: Math.random() * 100,
+    averageSpeed: 30 + Math.random() * 40,
     incidents: Math.random() > 0.8 ? ['accident', 'construction', 'road_closure'][Math.floor(Math.random() * 3)] : null,
-    estimatedDelay: Math.random() * 5, // 0-5 minutes additional delay
+    estimatedDelay: Math.random() * 5,
   };
 };
 
-// Get nearby points of interest (hospitals, fire stations, police stations)
+// Get nearby points of interest
 export const getNearbyPOIs = (
   center: [number, number],
-  radius: number = 2 // km
+  radius: number = 2
 ): { type: string; name: string; coordinates: [number, number] }[] => {
   const pois = [
-    // Global emergency services
     { type: 'fire_station', name: 'Fire Station Central', coordinates: [40.7505, -73.9934] as [number, number] },
     { type: 'fire_station', name: 'London Fire Brigade', coordinates: [51.5074, -0.1278] as [number, number] },
     { type: 'fire_station', name: 'Tokyo Fire Department', coordinates: [35.6762, 139.6503] as [number, number] },
-    
-    // Police stations
     { type: 'police_station', name: 'Metropolitan Police', coordinates: [51.5155, -0.0922] as [number, number] },
     { type: 'police_station', name: 'Tokyo Metropolitan Police', coordinates: [35.6812, 139.7671] as [number, number] },
     { type: 'police_station', name: 'NYPD Precinct', coordinates: [40.7282, -73.9942] as [number, number] },
-    
-    // Emergency services
     { type: 'emergency_service', name: 'Emergency Management Center', coordinates: [40.7128, -74.0060] as [number, number] },
     { type: 'emergency_service', name: 'Emergency Response Unit', coordinates: [48.8566, 2.3522] as [number, number] },
   ];
   
-  return pois.filter(poi => calculateDistance(center, poi.coordinates) <= radius);
+  return pois.filter(poi => {
+    const R = 6371;
+    const dLat = (poi.coordinates[0] - center[0]) * Math.PI / 180;
+    const dLon = (poi.coordinates[1] - center[1]) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(center[0] * Math.PI / 180) * Math.cos(poi.coordinates[0] * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    return distance <= radius;
+  });
 };

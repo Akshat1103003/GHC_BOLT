@@ -8,7 +8,6 @@ import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import NotificationPanel from '../components/notifications/NotificationPanel';
 import { useAppContext } from '../contexts/AppContext';
-import { calculateRoute } from '../utils/mockData';
 
 const DriverDashboard: React.FC = () => {
   const {
@@ -18,7 +17,7 @@ const DriverDashboard: React.FC = () => {
     updateAmbulanceLocation,
     selectedHospital,
     selectHospital,
-    setCurrentRoute,
+    currentRoute,
     hospitals,
     notifications,
     markNotificationAsRead,
@@ -42,6 +41,29 @@ const DriverDashboard: React.FC = () => {
   const [emergencyLocationType, setEmergencyLocationType] = useState<'current' | 'selected'>('current');
   const [emergencyLocationName, setEmergencyLocationName] = useState<string>('Current Location');
 
+  // Update route status when route changes
+  useEffect(() => {
+    if (currentRoute && selectedHospital) {
+      setRouteStatus({
+        status: emergencyActive ? 'warning' : 'info',
+        message: `Route to ${selectedHospital.name} ${emergencyActive ? 'active' : 'planned'}`,
+        details: `${currentRoute.distance.toFixed(1)} km - Estimated ${Math.ceil(currentRoute.duration)} minutes`,
+      });
+    } else if (selectedHospital) {
+      setRouteStatus({
+        status: 'info',
+        message: `Hospital selected: ${selectedHospital.name}`,
+        details: 'Route is being calculated...',
+      });
+    } else {
+      setRouteStatus({
+        status: 'inactive',
+        message: 'No active route',
+        details: 'Select a hospital to create a route',
+      });
+    }
+  }, [currentRoute, selectedHospital, emergencyActive]);
+
   // Handle emergency location change
   const handleEmergencyLocationChange = (
     location: [number, number], 
@@ -54,58 +76,29 @@ const DriverDashboard: React.FC = () => {
     
     // Update ambulance location to the emergency location
     updateAmbulanceLocation(location);
-    
-    // Clear any existing route when location changes
-    if (selectedHospital) {
-      const route = calculateRoute(location, selectedHospital);
-      setCurrentRoute(route);
-      setRouteStatus({
-        status: 'info',
-        message: `Route updated from ${locationName || 'emergency location'}`,
-        details: `${route.distance.toFixed(1)} km - Estimated ${Math.ceil(route.duration)} minutes`,
-      });
-    }
   };
 
   // Handle hospital selection
   const handleHospitalSelect = (hospital: any) => {
+    console.log('🏥 DriverDashboard: Hospital selected:', hospital.name);
     selectHospital(hospital);
-    
-    // Calculate and set the route from emergency location
-    const route = calculateRoute(emergencyLocation, hospital);
-    setCurrentRoute(route);
-    
-    // Update route status
-    setRouteStatus({
-      status: 'info',
-      message: `Route to ${hospital.name} created`,
-      details: `${route.distance.toFixed(1)} km - Estimated ${Math.ceil(route.duration)} minutes`,
-    });
   };
 
   // Handle hospital confirmation and start emergency route
   const handleHospitalConfirm = async (hospital: any) => {
     try {
+      console.log('🚨 DriverDashboard: Confirming hospital route to:', hospital.name);
+      
       // Activate emergency mode if not already active
       if (!emergencyActive) {
         toggleEmergency();
       }
 
-      // Calculate and set the route from emergency location
-      const route = calculateRoute(emergencyLocation, hospital);
-      setCurrentRoute(route);
-      
-      // Update route status to active
-      setRouteStatus({
-        status: 'warning',
-        message: `Emergency route to ${hospital.name} activated`,
-        details: `${route.distance.toFixed(1)} km - Emergency mode active`,
-      });
-
-      console.log(`Emergency route confirmed to ${hospital.name}`);
+      // Hospital selection and route creation is handled automatically by AppContext
+      console.log(`✅ Emergency route confirmed to ${hospital.name}`);
     } catch (error) {
       console.error('Error confirming hospital route:', error);
-      throw error; // Re-throw to let the component handle the error
+      throw error;
     }
   };
 
@@ -124,7 +117,7 @@ const DriverDashboard: React.FC = () => {
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Ambulance Driver Dashboard</h1>
-          <p className="text-gray-600">Manage emergency routes and monitor traffic signals</p>
+          <p className="text-gray-600">Manage emergency routes and monitor hospital coordination</p>
         </div>
         
         {/* Reset Button in Header */}
@@ -221,7 +214,7 @@ const DriverDashboard: React.FC = () => {
               message={routeStatus.message}
               details={routeStatus.details}
               icon={<Clock size={20} />}
-              progress={selectedHospital ? (emergencyActive ? 60 : 30) : 0}
+              progress={currentRoute ? (emergencyActive ? 75 : 50) : 0}
             />
 
             <StatusCard
