@@ -109,6 +109,11 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
 
   // Create enhanced, reliable marker icons with better visibility
   const createMarkerIcon = useCallback((type: string) => {
+    // Check if Google Maps API is loaded before using constructors
+    if (!window.google?.maps?.Size || !window.google?.maps?.Point) {
+      return null; // Return null to use default marker
+    }
+
     let svgContent = '';
     let size = 40;
     
@@ -164,8 +169,8 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
 
     return {
       url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgString)}`,
-      scaledSize: new google.maps.Size(size, size),
-      anchor: new google.maps.Point(size / 2, size / 2)
+      scaledSize: new window.google.maps.Size(size, size),
+      anchor: new window.google.maps.Point(size / 2, size / 2)
     };
   }, [emergencyActive]);
 
@@ -417,7 +422,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                   position={{ lat: searchLocation[0], lng: searchLocation[1] }}
                   onCloseClick={() => setSelectedMarker(null)}
                   options={{
-                    pixelOffset: new google.maps.Size(0, -10)
+                    pixelOffset: window.google?.maps?.Size ? new window.google.maps.Size(0, -10) : undefined
                   }}
                 >
                   <div className="text-center p-3 max-w-xs">
@@ -453,7 +458,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
               position={{ lat: ambulanceLocation[0], lng: ambulanceLocation[1] }}
               onCloseClick={() => setSelectedMarker(null)}
               options={{
-                pixelOffset: new google.maps.Size(0, -15)
+                pixelOffset: window.google?.maps?.Size ? new window.google.maps.Size(0, -15) : undefined
               }}
             >
               <div className="text-center p-3 max-w-sm">
@@ -512,7 +517,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                   position={{ lat: selectedHospital.coordinates[0], lng: selectedHospital.coordinates[1] }}
                   onCloseClick={() => setSelectedMarker(null)}
                   options={{
-                    pixelOffset: new google.maps.Size(0, -15)
+                    pixelOffset: window.google?.maps?.Size ? new window.google.maps.Size(0, -15) : undefined
                   }}
                 >
                   <div className="p-3 max-w-sm">
