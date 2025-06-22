@@ -4,6 +4,7 @@ import { Ambulance, Building2, MapPin, Navigation, Globe, Search, Route as Route
 import { useAppContext } from '../../contexts/AppContext';
 import RouteRenderer from './RouteRenderer';
 import { calculateDistance } from '../../utils/routeUtils';
+import { RouteInfo } from '../../types';
 
 interface MapViewProps {
   searchLocation?: [number, number] | null;
@@ -21,7 +22,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
   // State management
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
-  const [routeInfo, setRouteInfo] = useState<{distance: string, duration: string} | null>(null);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [isRouteVisible, setIsRouteVisible] = useState(false);
 
   // Get location name from coordinates
@@ -132,19 +133,22 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
   }, []);
 
   // Handle route creation
-  const handleRouteCreated = (info: { distance: string; duration: string }) => {
+  const handleRouteCreated = useCallback((info: RouteInfo) => {
     setRouteInfo(info);
     setIsRouteVisible(true);
     
+    console.log('✅ Route created successfully:', info);
+    
     // Show notification
     showRouteNotification(info.distance, info.duration);
-  };
+  }, []);
 
   // Handle route cleared
-  const handleRouteCleared = () => {
+  const handleRouteCleared = useCallback(() => {
     setRouteInfo(null);
     setIsRouteVisible(false);
-  };
+    console.log('🧹 Route cleared from MapView');
+  }, []);
 
   // Show route creation notification
   const showRouteNotification = (distance: string, duration: string) => {
