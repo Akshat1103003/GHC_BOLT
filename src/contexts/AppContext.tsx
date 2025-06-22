@@ -25,6 +25,7 @@ interface AppContextType {
   markNotificationAsRead: (id: string) => void;
   isLoading: boolean;
   dataSource: 'supabase' | 'mock';
+  isCreatingRoute: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -38,6 +39,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dataSource, setDataSource] = useState<'supabase' | 'mock'>('mock');
+  const [isCreatingRoute, setIsCreatingRoute] = useState(false);
 
   // Load initial data
   useEffect(() => {
@@ -144,6 +146,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSelectedHospital(hospital);
     
     if (hospital) {
+      // Set route creation state
+      setIsCreatingRoute(true);
+      
       // Automatically create route when hospital is selected
       try {
         const route = createRoute(ambulanceLocation, hospital);
@@ -153,13 +158,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           duration: Math.ceil(route.duration) + 'min',
           waypoints: route.waypoints.length
         });
+        
+        // Route creation completed successfully
+        setTimeout(() => {
+          setIsCreatingRoute(false);
+        }, 500); // Small delay to show the creation process
+        
       } catch (error) {
         console.error('❌ AppContext: Failed to create route:', error);
         setCurrentRoute(null);
+        setIsCreatingRoute(false);
       }
     } else {
       // Clear route when hospital is deselected
       setCurrentRoute(null);
+      setIsCreatingRoute(false);
       console.log('🗺️ AppContext: Route cleared');
     }
   };
@@ -183,12 +196,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Update route if hospital is selected
     if (selectedHospital) {
+      setIsCreatingRoute(true);
       try {
         const route = createRoute(location, selectedHospital);
         setCurrentRoute(route);
         console.log('🗺️ AppContext: Route updated for new ambulance location');
+        
+        // Route update completed
+        setTimeout(() => {
+          setIsCreatingRoute(false);
+        }, 500);
+        
       } catch (error) {
         console.error('❌ AppContext: Failed to update route:', error);
+        setIsCreatingRoute(false);
       }
     }
   };
@@ -230,6 +251,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Clear selected hospital and route
       setSelectedHospital(null);
       setCurrentRoute(null);
+      setIsCreatingRoute(false);
       
       console.log('✅ System reset completed');
     } catch (error) {
@@ -252,6 +274,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     markNotificationAsRead,
     isLoading,
     dataSource,
+    isCreatingRoute,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -28,17 +28,18 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
   
   const currentRouteRef = useRef<Route | null>(null);
   const isCreatingRouteRef = useRef(false);
+  const initializationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize Google Maps services - FIXED: Removed emergencyActive dependency
+  // Initialize Google Maps services with better error handling
   useEffect(() => {
     if (routesLibrary && map && window.google?.maps) {
       try {
         const service = new window.google.maps.DirectionsService();
         const renderer = new window.google.maps.DirectionsRenderer({
-          suppressMarkers: true, // We handle markers in MapView
+          suppressMarkers: true,
           preserveViewport: false,
           polylineOptions: {
-            strokeColor: '#2563EB', // Default color, will be updated dynamically
+            strokeColor: '#2563EB',
             strokeWeight: 10,
             strokeOpacity: 1.0,
             zIndex: 1000,
@@ -49,12 +50,19 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
         setDirectionsService(service);
         setDirectionsRenderer(renderer);
         
-        console.log('🗺️ Google Maps Directions services initialized successfully');
+        console.log('🗺️ RouteRenderer: Google Maps services initialized successfully');
       } catch (error) {
-        console.error('❌ Failed to initialize Google Maps services:', error);
+        console.error('❌ RouteRenderer: Failed to initialize Google Maps services:', error);
+        // Set a timeout to try fallback route creation if initialization fails
+        initializationTimeoutRef.current = setTimeout(() => {
+          if (route && !currentRouteRef.current) {
+            console.log('🔄 RouteRenderer: Initialization timeout, attempting fallback route...');
+            createFallbackRoute();
+          }
+        }, 3000);
       }
     }
-  }, [routesLibrary, map]); // Removed emergencyActive from dependencies
+  }, [routesLibrary, map]);
 
   // Update renderer styling when emergency status changes
   useEffect(() => {
@@ -98,14 +106,14 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
             ]
           }
         });
-        console.log('🎨 Updated route styling for emergency mode:', emergencyActive);
+        console.log('🎨 RouteRenderer: Updated route styling for emergency mode:', emergencyActive);
       } catch (error) {
-        console.error('❌ Failed to update route styling:', error);
+        console.error('❌ RouteRenderer: Failed to update route styling:', error);
       }
     }
   }, [directionsRenderer, emergencyActive]);
 
-  // Clear all routes
+  // Clear all routes with improved error handling
   const clearAllRoutes = useCallback(() => {
     try {
       if (directionsRenderer) {
@@ -122,20 +130,20 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
       if (onRouteCleared) {
         onRouteCleared();
       }
-      console.log('🧹 All routes cleared successfully');
+      console.log('🧹 RouteRenderer: All routes cleared successfully');
     } catch (error) {
-      console.error('❌ Error clearing routes:', error);
+      console.error('❌ RouteRenderer: Error clearing routes:', error);
     }
   }, [directionsRenderer, fallbackPolyline, shadowPolyline, onRouteCleared]);
 
-  // Create route using Google Directions API
+  // Create route using Google Directions API with timeout
   const createGoogleDirectionsRoute = useCallback(async (): Promise<boolean> => {
     if (!directionsService || !directionsRenderer || !route || !map || !window.google?.maps) {
-      console.warn('⚠️ Missing dependencies for Google Directions API');
+      console.warn('⚠️ RouteRenderer: Missing dependencies for Google Directions API');
       return false;
     }
 
-    console.log('🔄 Requesting Google Directions route...');
+    console.log('🔄 RouteRenderer: Requesting Google Directions route...');
 
     const request: google.maps.DirectionsRequest = {
       origin: { lat: route.startLocation[0], lng: route.startLocation[1] },
@@ -151,10 +159,18 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
     };
 
     return new Promise<boolean>((resolve) => {
+      // Set a timeout for the Directions API request
+      const timeoutId = setTimeout(() => {
+        console.warn('⏰ RouteRenderer: Google Directions API request timed out');
+        resolve(false);
+      }, 10000); // 10 second timeout
+
       directionsService.route(request, (result, status) => {
+        clearTimeout(timeoutId);
+        
         try {
           if (status === window.google.maps.DirectionsStatus.OK && result && result.routes.length > 0) {
-            console.log('✅ Google Directions route created successfully');
+            console.log('✅ RouteRenderer: Google Directions route created successfully');
             
             directionsRenderer.setDirections(result);
             
@@ -185,7 +201,7 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
               });
             }
             
-            console.log('✅ Route visualization complete via Google Directions API:', {
+            console.log('✅ RouteRenderer: Route visualization complete via Google Directions API:', {
               distance: leg.distance?.text,
               duration: leg.duration?.text,
               emergencyActive
@@ -193,32 +209,39 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
 
             resolve(true);
           } else {
-            console.error('❌ Google Directions request failed. Status:', status);
+            console.error('❌ RouteRenderer: Google Directions request failed. Status:', status);
             if (status === window.google.maps.DirectionsStatus.REQUEST_DENIED) {
-              console.error('❌ Directions API access denied. Check API key and enabled services.');
+              console.error('❌ RouteRenderer: Directions API access denied. Check API key and enabled services.');
             } else if (status === window.google.maps.DirectionsStatus.OVER_QUERY_LIMIT) {
-              console.error('❌ Directions API quota exceeded.');
+              console.error('❌ RouteRenderer: Directions API quota exceeded.');
             } else if (status === window.google.maps.DirectionsStatus.ZERO_RESULTS) {
-              console.error('❌ No route found between the specified locations.');
+              console.error('❌ RouteRenderer: No route found between the specified locations.');
             }
             resolve(false);
           }
         } catch (error) {
-          console.error('❌ Error processing Directions API response:', error);
+          console.error('❌ RouteRenderer: Error processing Directions API response:', error);
           resolve(false);
         }
       });
     });
   }, [directionsService, directionsRenderer, route, map, onRouteCreated, emergencyActive]);
 
-  // Create fallback polyline route
+  // Create fallback polyline route with better error handling
   const createFallbackRoute = useCallback(() => {
     if (!route || !map || !window.google?.maps) {
-      console.warn('⚠️ Missing dependencies for fallback route');
+      console.warn('⚠️ RouteRenderer: Missing dependencies for fallback route');
+      // Still notify that route creation failed
+      if (onRouteCreated) {
+        onRouteCreated({
+          distance: 'Unknown',
+          duration: 'Unknown'
+        });
+      }
       return;
     }
 
-    console.log('🔄 Creating fallback polyline route...');
+    console.log('🔄 RouteRenderer: Creating fallback polyline route...');
 
     try {
       // Clear existing routes first
@@ -231,7 +254,14 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
       }));
 
       if (path.length < 2) {
-        console.error('❌ Insufficient waypoints for route creation');
+        console.error('❌ RouteRenderer: Insufficient waypoints for route creation');
+        // Notify with estimated values even if route creation fails
+        if (onRouteCreated) {
+          onRouteCreated({
+            distance: `${route.distance.toFixed(1)} km (estimated)`,
+            duration: `${Math.ceil(route.duration)} min (estimated)`
+          });
+        }
         return;
       }
 
@@ -288,14 +318,21 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
         });
       }
 
-      console.log('✅ Fallback polyline route created successfully');
+      console.log('✅ RouteRenderer: Fallback polyline route created successfully');
 
     } catch (error) {
-      console.error('❌ Failed to create fallback route:', error);
+      console.error('❌ RouteRenderer: Failed to create fallback route:', error);
+      // Even if fallback fails, notify with basic route info
+      if (onRouteCreated) {
+        onRouteCreated({
+          distance: `${route.distance.toFixed(1)} km (estimated)`,
+          duration: `${Math.ceil(route.duration)} min (estimated)`
+        });
+      }
     }
   }, [route, map, emergencyActive, clearAllRoutes, onRouteCreated]);
 
-  // Main route creation logic
+  // Main route creation logic with improved error handling and timeout
   const createRoute = useCallback(async () => {
     if (!route || !map) {
       clearAllRoutes();
@@ -305,7 +342,7 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
 
     // Prevent concurrent route creation
     if (isCreatingRouteRef.current) {
-      console.log('🔄 Route creation already in progress, skipping...');
+      console.log('🔄 RouteRenderer: Route creation already in progress, skipping...');
       return;
     }
 
@@ -317,13 +354,13 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
         prevRoute.startLocation[1] === route.startLocation[1] &&
         prevRoute.endLocation[0] === route.endLocation[0] &&
         prevRoute.endLocation[1] === route.endLocation[1]) {
-      console.log('🔄 Route unchanged, skipping recreation');
+      console.log('🔄 RouteRenderer: Route unchanged, skipping recreation');
       return;
     }
 
     isCreatingRouteRef.current = true;
 
-    console.log('🗺️ Creating new route...', {
+    console.log('🗺️ RouteRenderer: Creating new route...', {
       routeId: route.id,
       from: route.startLocation,
       to: route.endLocation,
@@ -332,15 +369,27 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
     });
 
     try {
+      // Set a timeout for the entire route creation process
+      const routeCreationTimeout = setTimeout(() => {
+        console.warn('⏰ RouteRenderer: Route creation timed out, forcing fallback...');
+        if (isCreatingRouteRef.current) {
+          createFallbackRoute();
+          isCreatingRouteRef.current = false;
+        }
+      }, 15000); // 15 second timeout for entire process
+
       // Try Google Directions API first
       let success = false;
       if (directionsService && directionsRenderer) {
         success = await createGoogleDirectionsRoute();
       }
 
+      // Clear the timeout if we succeeded or are about to try fallback
+      clearTimeout(routeCreationTimeout);
+
       // Fallback to custom polyline if Directions API fails
       if (!success) {
-        console.log('🔄 Google Directions API failed, using fallback polyline route...');
+        console.log('🔄 RouteRenderer: Google Directions API failed, using fallback polyline route...');
         createFallbackRoute();
       }
 
@@ -348,7 +397,7 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
       currentRouteRef.current = route;
 
     } catch (error) {
-      console.error('❌ Error in route creation:', error);
+      console.error('❌ RouteRenderer: Error in route creation:', error);
       // Try fallback route as last resort
       createFallbackRoute();
     } finally {
@@ -356,19 +405,38 @@ const RouteRenderer: React.FC<RouteRendererProps> = ({
     }
   }, [route, map, directionsService, directionsRenderer, createGoogleDirectionsRoute, createFallbackRoute, clearAllRoutes, emergencyActive]);
 
-  // Effect to handle route changes
+  // Effect to handle route changes with immediate fallback for better UX
   useEffect(() => {
-    if (route && map && routesLibrary) {
-      createRoute();
+    if (route && map) {
+      // Clear any pending initialization timeout
+      if (initializationTimeoutRef.current) {
+        clearTimeout(initializationTimeoutRef.current);
+        initializationTimeoutRef.current = null;
+      }
+
+      if (routesLibrary) {
+        createRoute();
+      } else {
+        // If routesLibrary isn't loaded yet, create fallback route immediately
+        console.log('🔄 RouteRenderer: Routes library not loaded, creating immediate fallback...');
+        setTimeout(() => {
+          if (route && map && !currentRouteRef.current) {
+            createFallbackRoute();
+          }
+        }, 1000);
+      }
     } else if (!route) {
       clearAllRoutes();
       currentRouteRef.current = null;
     }
-  }, [route, map, routesLibrary, createRoute, clearAllRoutes]);
+  }, [route, map, routesLibrary, createRoute, createFallbackRoute, clearAllRoutes]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (initializationTimeoutRef.current) {
+        clearTimeout(initializationTimeoutRef.current);
+      }
       clearAllRoutes();
       currentRouteRef.current = null;
       isCreatingRouteRef.current = false;

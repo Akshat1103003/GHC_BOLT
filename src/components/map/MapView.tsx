@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
-import { Ambulance, Building2, MapPin, Navigation, Globe, Search, Route as RouteIcon } from 'lucide-react';
+import { Ambulance, Building2, MapPin, Navigation, Globe, Search, Route as RouteIcon, Loader2 } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import RouteRenderer from './RouteRenderer';
 import { calculateDistance } from '../../utils/routeUtils';
@@ -16,7 +16,8 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     ambulanceLocation, 
     selectedHospital, 
     currentRoute,
-    emergencyActive
+    emergencyActive,
+    isCreatingRoute
   } = useAppContext();
 
   // State management
@@ -58,6 +59,16 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     
     return () => window.removeEventListener('resize', updateMapSize);
   }, []);
+
+  // Reset route visibility when route changes
+  useEffect(() => {
+    if (currentRoute) {
+      setIsRouteVisible(false); // Reset visibility when new route is created
+    } else {
+      setIsRouteVisible(false);
+      setRouteInfo(null);
+    }
+  }, [currentRoute]);
 
   // Get location name from coordinates
   const getLocationName = (coordinates: [number, number]) => {
@@ -177,7 +188,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
   // Handle map load with improved error handling
   const handleMapLoad = useCallback((map: google.maps.Map) => {
     setMapInstance(map);
-    console.log('🗺️ Map loaded successfully');
+    console.log('🗺️ MapView: Map loaded successfully');
     
     // Set initial map options for better performance
     map.setOptions({
@@ -205,7 +216,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     setRouteInfo(info);
     setIsRouteVisible(true);
     
-    console.log('✅ Route created successfully:', info);
+    console.log('✅ MapView: Route created successfully:', info);
     
     // Show enhanced notification
     showRouteNotification(info.distance, info.duration);
@@ -215,7 +226,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
   const handleRouteCleared = useCallback(() => {
     setRouteInfo(null);
     setIsRouteVisible(false);
-    console.log('🧹 Route cleared from MapView');
+    console.log('🧹 MapView: Route cleared');
   }, []);
 
   // Enhanced route creation notification
@@ -290,6 +301,21 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     return 11;
   };
 
+  // Determine current route status for display
+  const getRouteStatus = () => {
+    if (isCreatingRoute) {
+      return { status: 'creating', message: 'Creating route path...', color: 'text-amber-600' };
+    } else if (isRouteVisible && routeInfo) {
+      return { status: 'visible', message: 'Route Active', color: 'text-green-600' };
+    } else if (selectedHospital && !isRouteVisible) {
+      return { status: 'pending', message: 'Route Pending', color: 'text-amber-600' };
+    } else {
+      return { status: 'none', message: 'No Route', color: 'text-gray-600' };
+    }
+  };
+
+  const routeStatus = getRouteStatus();
+
   return (
     <div className={`rounded-lg overflow-hidden shadow-lg bg-white ${className}`}>
       {/* Enhanced Map Controls Header */}
@@ -305,10 +331,13 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
             )}
             {selectedHospital && (
               <span className={`font-medium flex items-center px-2 py-1 rounded-full text-xs ${
-                isRouteVisible ? 'text-green-600 bg-green-50' : 'text-amber-600 bg-amber-50'
+                routeStatus.status === 'creating' ? 'text-amber-600 bg-amber-50' :
+                routeStatus.status === 'visible' ? 'text-green-600 bg-green-50' :
+                'text-amber-600 bg-amber-50'
               }`}>
+                {routeStatus.status === 'creating' && <Loader2 size={12} className="mr-1 animate-spin" />}
                 <RouteIcon size={12} className="mr-1" />
-                Route {isRouteVisible ? 'Active' : 'Creating...'}
+                {routeStatus.message}
               </span>
             )}
             {emergencyActive && (
@@ -353,13 +382,15 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
               <span>Search Location</span>
             </div>
           )}
-          {isRouteVisible && (
+          {selectedHospital && (
             <div className="flex items-center">
               <div className={`w-4 h-4 rounded-full mr-1 ${
-                emergencyActive ? 'bg-red-500 animate-pulse' : 'bg-blue-500'
+                routeStatus.status === 'creating' ? 'bg-amber-500 animate-pulse' :
+                routeStatus.status === 'visible' ? 'bg-green-500' :
+                'bg-amber-500'
               }`}></div>
-              <span className={emergencyActive ? 'text-red-600 font-medium' : ''}>
-                Route Path {emergencyActive ? '(Emergency)' : ''}
+              <span className={routeStatus.color}>
+                {routeStatus.message}
               </span>
             </div>
           )}
@@ -491,9 +522,15 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                         {emergencyActive && ' (Emergency Priority)'}
                       </div>
                     )}
-                    {!isRouteVisible && (
-                      <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded animate-pulse">
-                        ⚠️ Creating route path...
+                    {isCreatingRoute && (
+                      <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded flex items-center">
+                        <Loader2 size={12} className="mr-1 animate-spin" />
+                        Creating route path...
+                      </div>
+                    )}
+                    {!isRouteVisible && !isCreatingRoute && (
+                      <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                        ⚠️ Route pending...
                       </div>
                     )}
                   </div>
@@ -569,9 +606,15 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                           📍 Route: {routeInfo.distance} • {routeInfo.duration}
                         </p>
                       )}
-                      {!isRouteVisible && (
-                        <p className="text-xs text-amber-600 font-medium animate-pulse">
-                          ⚠️ Creating route visualization...
+                      {isCreatingRoute && (
+                        <p className="text-xs text-amber-600 font-medium flex items-center">
+                          <Loader2 size={12} className="mr-1 animate-spin" />
+                          Creating route visualization...
+                        </p>
+                      )}
+                      {!isRouteVisible && !isCreatingRoute && (
+                        <p className="text-xs text-amber-600 font-medium">
+                          ⚠️ Route pending...
                         </p>
                       )}
                     </div>
@@ -582,11 +625,11 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
           )}
         </Map>
         
-        {/* Loading overlay for route creation */}
-        {selectedHospital && !isRouteVisible && (
+        {/* Enhanced loading overlay for route creation */}
+        {isCreatingRoute && (
           <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center pointer-events-none">
             <div className="bg-white rounded-lg shadow-lg p-4 flex items-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
+              <Loader2 className="animate-spin h-6 w-6 text-blue-600 mr-3" />
               <span className="text-sm font-medium text-gray-700">Creating route path...</span>
             </div>
           </div>
@@ -612,14 +655,15 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
             
             {/* Status indicators */}
             <div className="flex flex-wrap gap-2 mt-2">
-              {selectedHospital && isRouteVisible && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  ✅ Route path visible
+              {isCreatingRoute && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 animate-pulse">
+                  <Loader2 size={12} className="mr-1 animate-spin" />
+                  Creating route...
                 </span>
               )}
-              {selectedHospital && !isRouteVisible && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 animate-pulse">
-                  ⚠️ Creating route...
+              {selectedHospital && isRouteVisible && !isCreatingRoute && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  ✅ Route path visible
                 </span>
               )}
               {searchLocation && (
