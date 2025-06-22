@@ -113,129 +113,135 @@ const DriverDashboard: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Ambulance Driver Dashboard</h1>
-          <p className="text-gray-600">Manage emergency routes and monitor hospital coordination</p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-6">
+        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Ambulance Driver Dashboard</h1>
+            <p className="text-gray-600">Manage emergency routes and monitor hospital coordination</p>
+          </div>
+          
+          {/* Reset Button in Header */}
+          <div className="mt-4 md:mt-0">
+            <ResetButton />
+          </div>
         </div>
-        
-        {/* Reset Button in Header */}
-        <div className="mt-4 md:mt-0">
-          <ResetButton />
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
-        {/* Left column - Controls with separate scrolling */}
-        <div className="lg:col-span-1 h-full overflow-y-auto space-y-6 pr-2">
-          {/* Emergency toggle */}
-          <EmergencyToggle className="mb-6" />
+        {/* Responsive Grid Layout */}
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+          {/* Left column - Controls */}
+          <div className="xl:col-span-1 space-y-6">
+            {/* Emergency toggle */}
+            <EmergencyToggle />
 
-          {/* Emergency Location Selector */}
-          <LocationSelector
-            onLocationChange={handleEmergencyLocationChange}
-          />
+            {/* Emergency Location Selector */}
+            <LocationSelector
+              onLocationChange={handleEmergencyLocationChange}
+            />
 
-          {/* Patient information */}
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
-              <User className="mr-2" size={18} />
-              Patient Information
-            </h2>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Condition:</span>
-                <span className="font-medium">{patientInfo.condition}</span>
+            {/* Patient information */}
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                <User className="mr-2" size={18} />
+                Patient Information
+              </h2>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Condition:</span>
+                  <span className="font-medium">{patientInfo.condition}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Age:</span>
+                  <span className="font-medium">{patientInfo.age}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Gender:</span>
+                  <span className="font-medium">{patientInfo.gender}</span>
+                </div>
+                <div className="pt-2">
+                  <button className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded transition-colors">
+                    Update Patient Info
+                  </button>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Age:</span>
-                <span className="font-medium">{patientInfo.age}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Gender:</span>
-                <span className="font-medium">{patientInfo.gender}</span>
-              </div>
-              <div className="pt-2">
-                <button className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded transition-colors">
-                  Update Patient Info
-                </button>
+            </div>
+
+            {/* Current ambulance location */}
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                <MapPin className="mr-2" size={18} />
+                Ambulance Location
+              </h2>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Type:</span>
+                  <span className="font-medium capitalize">{emergencyLocationType} Location</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Location:</span>
+                  <span className="font-medium text-sm">{emergencyLocationName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Latitude:</span>
+                  <span className="font-medium">{ambulanceLocation[0].toFixed(6)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Longitude:</span>
+                  <span className="font-medium">{ambulanceLocation[1].toFixed(6)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Last Updated:</span>
+                  <span className="font-medium">{new Date().toLocaleTimeString()}</span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Current ambulance location */}
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
-              <MapPin className="mr-2" size={18} />
-              Ambulance Location
-            </h2>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Type:</span>
-                <span className="font-medium capitalize">{emergencyLocationType} Location</span>
+          {/* Middle column - Map */}
+          <div className="xl:col-span-2">
+            <div className="space-y-6">
+              {/* Status cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <StatusCard
+                  title="Route Status"
+                  status={routeStatus.status as any}
+                  message={routeStatus.message}
+                  details={routeStatus.details}
+                  icon={<Clock size={20} />}
+                  progress={currentRoute ? (emergencyActive ? 75 : 50) : 0}
+                />
+
+                <StatusCard
+                  title="Hospital Status"
+                  status={selectedHospital?.emergencyReady ? 'success' : 'warning'}
+                  message={selectedHospital ? (selectedHospital.emergencyReady ? 'Ready for emergency' : 'Limited capacity') : 'No hospital selected'}
+                  details={selectedHospital ? `${selectedHospital.name} - ${selectedHospital.address}` : 'Please select a destination hospital'}
+                  icon={<Hospital size={20} />}
+                />
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Location:</span>
-                <span className="font-medium text-sm">{emergencyLocationName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Latitude:</span>
-                <span className="font-medium">{ambulanceLocation[0].toFixed(6)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Longitude:</span>
-                <span className="font-medium">{ambulanceLocation[1].toFixed(6)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Last Updated:</span>
-                <span className="font-medium">{new Date().toLocaleTimeString()}</span>
+
+              {/* Enhanced Map view */}
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                <MapView 
+                  searchLocation={searchLocationForMap}
+                  className="w-full"
+                />
               </div>
             </div>
           </div>
 
-          {/* Hospital selection with search and confirmation */}
-          <HospitalSelect
-            hospitals={hospitals}
-            currentLocation={emergencyLocation}
-            onSelect={handleHospitalSelect}
-            onConfirm={handleHospitalConfirm}
-            onSearchLocationChange={setSearchLocationForMap}
-          />
-        </div>
-
-        {/* Right columns - Map and status centered */}
-        <div className="lg:col-span-2 h-full flex flex-col space-y-6">
-          {/* Status cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
-            <StatusCard
-              title="Route Status"
-              status={routeStatus.status as any}
-              message={routeStatus.message}
-              details={routeStatus.details}
-              icon={<Clock size={20} />}
-              progress={currentRoute ? (emergencyActive ? 75 : 50) : 0}
+          {/* Right column - Hospital selection and notifications */}
+          <div className="xl:col-span-1 space-y-6">
+            {/* Hospital selection with search and confirmation */}
+            <HospitalSelect
+              hospitals={hospitals}
+              currentLocation={emergencyLocation}
+              onSelect={handleHospitalSelect}
+              onConfirm={handleHospitalConfirm}
+              onSearchLocationChange={setSearchLocationForMap}
             />
 
-            <StatusCard
-              title="Hospital Status"
-              status={selectedHospital?.emergencyReady ? 'success' : 'warning'}
-              message={selectedHospital ? (selectedHospital.emergencyReady ? 'Ready for emergency' : 'Limited capacity') : 'No hospital selected'}
-              details={selectedHospital ? `${selectedHospital.name} - ${selectedHospital.address}` : 'Please select a destination hospital'}
-              icon={<Hospital size={20} />}
-            />
-          </div>
-
-          {/* Map view with search location - centered and prominent */}
-          <div className="flex-grow min-h-0">
-            <MapView 
-              className="h-full" 
-              searchLocation={searchLocationForMap}
-            />
-          </div>
-
-          {/* Notifications */}
-          <div className="flex-shrink-0 max-h-64 overflow-hidden">
+            {/* Notifications */}
             <NotificationPanel
               notifications={notifications}
               onMarkAsRead={markNotificationAsRead}
