@@ -21,6 +21,16 @@ export interface Route {
   duration: number; // in minutes
 }
 
+export interface RouteInfo {
+  distance: string;
+  duration: string;
+  steps?: Array<{
+    instruction: string;
+    distance: string;
+    duration: string;
+  }>;
+}
+
 export interface Notification {
   id: string;
   type: 'hospital' | 'trafficSignal';
