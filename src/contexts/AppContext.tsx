@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Hospital, Route, Notification } from '../types';
-import { mockHospitals, calculateRoute } from '../utils/mockData';
+import { mockHospitals } from '../utils/mockData';
+import { createRoute } from '../utils/routeUtils';
 
 // Check if Supabase is available
 const isSupabaseAvailable = () => {
@@ -135,6 +136,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const toggleEmergency = () => {
     const newEmergencyState = !emergencyActive;
     setEmergencyActive(newEmergencyState);
+    console.log('🚨 Emergency mode:', newEmergencyState ? 'ACTIVATED' : 'DEACTIVATED');
   };
 
   const selectHospital = (hospital: Hospital | null) => {
@@ -144,9 +146,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (hospital) {
       // Automatically create route when hospital is selected
       try {
-        const route = calculateRoute(ambulanceLocation, hospital);
+        const route = createRoute(ambulanceLocation, hospital);
         setCurrentRoute(route);
-        console.log('🗺️ AppContext: Route created automatically');
+        console.log('🗺️ AppContext: Route created automatically:', {
+          distance: route.distance.toFixed(1) + 'km',
+          duration: Math.ceil(route.duration) + 'min',
+          waypoints: route.waypoints.length
+        });
       } catch (error) {
         console.error('❌ AppContext: Failed to create route:', error);
         setCurrentRoute(null);
@@ -154,10 +160,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } else {
       // Clear route when hospital is deselected
       setCurrentRoute(null);
+      console.log('🗺️ AppContext: Route cleared');
     }
   };
 
   const updateAmbulanceLocation = async (location: [number, number]) => {
+    console.log('🚑 AppContext: Updating ambulance location:', location);
+    
     if (dataSource === 'supabase') {
       try {
         const { updateAmbulanceLocation: updateAmbulanceLocationDB } = await import('../services/supabaseService');
@@ -175,7 +184,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Update route if hospital is selected
     if (selectedHospital) {
       try {
-        const route = calculateRoute(location, selectedHospital);
+        const route = createRoute(location, selectedHospital);
         setCurrentRoute(route);
         console.log('🗺️ AppContext: Route updated for new ambulance location');
       } catch (error) {
@@ -210,6 +219,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const resetSystem = async () => {
     try {
+      console.log('🔄 AppContext: Resetting system...');
+      
       // Reset ambulance to original position
       await updateAmbulanceLocation([40.7128, -74.0060]);
       
@@ -220,7 +231,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setSelectedHospital(null);
       setCurrentRoute(null);
       
-      console.log('🔄 System reset completed');
+      console.log('✅ System reset completed');
     } catch (error) {
       console.error('Error resetting system:', error);
     }
@@ -249,7 +260,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 export const useAppContext = (): AppContextType => {
   const context = useContext(AppContext);
   if (context === undefined) {
-    throw new error('useAppContext must be used within an AppProvider');
+    throw new Error('useAppContext must be used within an AppProvider');
   }
   return context;
 };

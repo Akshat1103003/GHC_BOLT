@@ -28,25 +28,36 @@ export const calculateDuration = (
   return (distance / baseSpeed) * 60 * cityTrafficPenalty; // Convert to minutes
 };
 
-// Generate waypoints for a route
+// Generate realistic waypoints for a route
 export const generateWaypoints = (
   start: [number, number],
   end: [number, number]
 ): [number, number][] => {
   const waypoints: [number, number][] = [start];
   
-  // Create 3 intermediate points for a smooth curve
-  for (let i = 1; i <= 3; i++) {
-    const ratio = i / 4;
+  // Calculate the number of intermediate points based on distance
+  const distance = calculateDistance(start, end);
+  const numPoints = Math.max(3, Math.min(8, Math.floor(distance / 5))); // 1 point per 5km, min 3, max 8
+  
+  // Create intermediate points with realistic curves
+  for (let i = 1; i <= numPoints; i++) {
+    const ratio = i / (numPoints + 1);
     const lat = start[0] + (end[0] - start[0]) * ratio;
     const lng = start[1] + (end[1] - start[1]) * ratio;
     
-    // Add slight curve for realism
-    const curveOffset = Math.sin(ratio * Math.PI) * 0.002;
-    waypoints.push([lat + curveOffset, lng + curveOffset]);
+    // Add realistic curve variations for road-like paths
+    const curveOffset = Math.sin(ratio * Math.PI) * 0.003; // Larger curve for realism
+    const perpendicularOffset = Math.cos(ratio * Math.PI * 2) * 0.001; // Add variation
+    
+    waypoints.push([
+      lat + curveOffset, 
+      lng + curveOffset + perpendicularOffset
+    ]);
   }
   
   waypoints.push(end);
+  
+  console.log(`🗺️ Generated ${waypoints.length} waypoints for ${distance.toFixed(1)}km route`);
   return waypoints;
 };
 
@@ -59,12 +70,18 @@ export const createRoute = (
     throw new Error('Invalid hospital data provided');
   }
 
+  console.log('🗺️ Creating route:', {
+    from: startLocation,
+    to: hospital.coordinates,
+    hospital: hospital.name
+  });
+
   const waypoints = generateWaypoints(startLocation, hospital.coordinates);
   const distance = calculateDistance(startLocation, hospital.coordinates);
   const duration = calculateDuration(startLocation, hospital.coordinates);
 
   const route: Route = {
-    id: `route-${Date.now()}`,
+    id: `route-${Date.now()}-${hospital.id}`,
     startLocation,
     endLocation: hospital.coordinates,
     waypoints,
@@ -72,7 +89,7 @@ export const createRoute = (
     duration,
   };
 
-  console.log(`🗺️ Route created: ${distance.toFixed(1)}km, ${Math.ceil(duration)} minutes`);
+  console.log(`✅ Route created: ${distance.toFixed(1)}km, ${Math.ceil(duration)} minutes, ${waypoints.length} waypoints`);
   return route;
 };
 
@@ -83,4 +100,21 @@ export const calculateRouteDistance = (waypoints: [number, number][]): number =>
     totalDistance += calculateDistance(waypoints[i], waypoints[i + 1]);
   }
   return totalDistance;
+};
+
+// Validate route data
+export const validateRoute = (route: Route): boolean => {
+  if (!route || !route.waypoints || route.waypoints.length < 2) {
+    return false;
+  }
+  
+  if (!route.startLocation || !route.endLocation) {
+    return false;
+  }
+  
+  if (route.distance <= 0 || route.duration <= 0) {
+    return false;
+  }
+  
+  return true;
 };

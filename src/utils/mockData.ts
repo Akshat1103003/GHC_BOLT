@@ -1,5 +1,4 @@
-import { Hospital, Route } from '../types';
-import { createRoute } from './routeUtils';
+import { Hospital } from '../types';
 
 // Global hospitals from various cities and countries with actual coordinates
 export const mockHospitals: Hospital[] = [
@@ -187,14 +186,6 @@ export const mockHospitals: Hospital[] = [
     emergencyReady: true,
   },
 ];
-
-// Use the new route creation utility
-export const calculateRoute = (
-  startLocation: [number, number],
-  hospital: Hospital
-): Route => {
-  return createRoute(startLocation, hospital);
-};
 
 // Re-export utilities for backward compatibility
 export { calculateDistance, calculateDuration } from './routeUtils';
