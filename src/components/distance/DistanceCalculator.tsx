@@ -28,6 +28,26 @@ interface DistanceCalculatorProps {
   maxHospitals?: number;
 }
 
+// Helper functions moved to top level
+const getPriorityColor = (priority: 'high' | 'medium' | 'low') => {
+  switch (priority) {
+    case 'high': return 'text-green-600 bg-green-50 border-green-200';
+    case 'medium': return 'text-amber-600 bg-amber-50 border-amber-200';
+    case 'low': return 'text-red-600 bg-red-50 border-red-200';
+  }
+};
+
+const getDistanceCategoryColor = (distance: number) => {
+  const category = getDistanceCategory(distance);
+  switch (category) {
+    case 'very-close': return 'text-green-600';
+    case 'close': return 'text-blue-600';
+    case 'medium': return 'text-amber-600';
+    case 'far': return 'text-orange-600';
+    case 'very-far': return 'text-red-600';
+  }
+};
+
 const DistanceCalculator: React.FC<DistanceCalculatorProps> = ({
   className = '',
   showDetailedView = true,
@@ -97,27 +117,6 @@ const DistanceCalculator: React.FC<DistanceCalculatorProps> = ({
       setTrackingData({ distanceTraveled: 0, totalDistance: 0, averageSpeed: 0 });
     }
   }, [emergencyActive, distanceTracker, ambulanceLocation]);
-
-  // Get priority color
-  const getPriorityColor = (priority: 'high' | 'medium' | 'low') => {
-    switch (priority) {
-      case 'high': return 'text-green-600 bg-green-50 border-green-200';
-      case 'medium': return 'text-amber-600 bg-amber-50 border-amber-200';
-      case 'low': return 'text-red-600 bg-red-50 border-red-200';
-    }
-  };
-
-  // Get distance category color
-  const getDistanceCategoryColor = (distance: number) => {
-    const category = getDistanceCategory(distance);
-    switch (category) {
-      case 'very-close': return 'text-green-600';
-      case 'close': return 'text-blue-600';
-      case 'medium': return 'text-amber-600';
-      case 'far': return 'text-orange-600';
-      case 'very-far': return 'text-red-600';
-    }
-  };
 
   if (!initialLocationSet) {
     return (
@@ -278,25 +277,6 @@ const HospitalDistanceCard: React.FC<HospitalDistanceCardProps> = ({
   const distanceColor = getDistanceCategoryColor(straightLineDistance);
   const currentDuration = emergencyActive ? emergencyDuration : duration;
   const eta = calculateETA(currentDuration);
-
-  const getPriorityColor = (priority: 'high' | 'medium' | 'low') => {
-    switch (priority) {
-      case 'high': return 'text-green-600 bg-green-50 border-green-200';
-      case 'medium': return 'text-amber-600 bg-amber-50 border-amber-200';
-      case 'low': return 'text-red-600 bg-red-50 border-red-200';
-    }
-  };
-
-  const getDistanceCategoryColor = (distance: number) => {
-    const category = getDistanceCategory(distance);
-    switch (category) {
-      case 'very-close': return 'text-green-600';
-      case 'close': return 'text-blue-600';
-      case 'medium': return 'text-amber-600';
-      case 'far': return 'text-orange-600';
-      case 'very-far': return 'text-red-600';
-    }
-  };
 
   return (
     <div className={`p-4 transition-colors ${
