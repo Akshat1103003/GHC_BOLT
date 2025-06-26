@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Ambulance, Clock, CheckCircle, Users, AlarmClock } from 'lucide-react';
+import { Ambulance, Clock, CheckCircle, Users, AlarmClock, Navigation } from 'lucide-react';
 import NotificationPanel from '../components/notifications/NotificationPanel';
 import StatusCard from '../components/dashboard/StatusCard';
+import DistanceCalculator from '../components/distance/DistanceCalculator';
+import DistanceDisplay from '../components/distance/DistanceDisplay';
 import { useAppContext } from '../contexts/AppContext';
 
 const HospitalDashboard: React.FC = () => {
-  const { hospitals, notifications, markNotificationAsRead, isLoading } = useAppContext();
+  const { 
+    hospitals, 
+    notifications, 
+    markNotificationAsRead, 
+    isLoading,
+    ambulanceLocation,
+    selectedHospital,
+    emergencyActive
+  } = useAppContext();
   
   // In a real app, this would be determined by authentication
   const hospitalId = 'h1'; 
@@ -118,7 +128,15 @@ const HospitalDashboard: React.FC = () => {
           <p className="text-gray-600">{hospital?.address}</p>
         </div>
         
-        <div className="mt-4 md:mt-0">
+        <div className="mt-4 md:mt-0 flex items-center space-x-3">
+          {/* Distance to ambulance if selected */}
+          {selectedHospital?.id === hospitalId && emergencyActive && (
+            <div className="flex items-center bg-red-100 text-red-800 px-3 py-2 rounded-lg">
+              <Navigation className="mr-2" size={16} />
+              <DistanceDisplay compact={true} />
+            </div>
+          )}
+          
           <button 
             className={`px-4 py-2 rounded-md font-medium ${
               hospital?.emergencyReady 
@@ -141,6 +159,12 @@ const HospitalDashboard: React.FC = () => {
             message={preparationStatus.message}
             icon={<CheckCircle size={20} />}
             progress={preparationStatus.progress}
+          />
+
+          {/* Distance Calculator for Hospital View */}
+          <DistanceCalculator 
+            showDetailedView={true}
+            maxHospitals={5}
           />
 
           {/* Staff Status */}

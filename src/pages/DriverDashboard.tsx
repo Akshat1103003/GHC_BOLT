@@ -5,6 +5,8 @@ import EmergencyToggle from '../components/common/EmergencyToggle';
 import HospitalSelect from '../components/common/HospitalSelect';
 import LocationSelector from '../components/common/LocationSelector';
 import LiveLocationButton from '../components/common/LiveLocationButton';
+import DistanceCalculator from '../components/distance/DistanceCalculator';
+import DistanceDisplay from '../components/distance/DistanceDisplay';
 import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import NotificationPanel from '../components/notifications/NotificationPanel';
@@ -199,7 +201,7 @@ const DriverDashboard: React.FC = () => {
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* Left column - Controls */}
           <div className="xl:col-span-1 space-y-6">
-            {/* Live Location Control - NEW */}
+            {/* Live Location Control */}
             <LiveLocationButton />
 
             {/* Emergency toggle */}
@@ -209,6 +211,11 @@ const DriverDashboard: React.FC = () => {
             <LocationSelector
               onLocationChange={handleEmergencyLocationChange}
             />
+
+            {/* Distance Display - NEW */}
+            {selectedHospital && (
+              <DistanceDisplay compact={false} />
+            )}
 
             {/* Patient information */}
             <div className="bg-white rounded-lg shadow-md p-4">
@@ -233,65 +240,6 @@ const DriverDashboard: React.FC = () => {
                   <button className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded transition-colors">
                     Update Patient Info
                   </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Current ambulance location */}
-            <div className="bg-white rounded-lg shadow-md p-4">
-              <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
-                <MapPin className="mr-2" size={18} />
-                Ambulance Location
-                {isDetectingLocation && (
-                  <Crosshair className="ml-2 animate-spin text-amber-500" size={16} />
-                )}
-              </h2>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Type:</span>
-                  <span className="font-medium capitalize flex items-center">
-                    {emergencyLocationType} Location
-                    {isDetectingLocation && (
-                      <span className="ml-2 text-amber-600 text-xs animate-pulse">(Detecting...)</span>
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Location:</span>
-                  <span className="font-medium text-sm">{emergencyLocationName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Latitude:</span>
-                  <span className="font-medium">{ambulanceLocation[0].toFixed(6)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Longitude:</span>
-                  <span className="font-medium">{ambulanceLocation[1].toFixed(6)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Last Updated:</span>
-                  <span className="font-medium">{new Date().toLocaleTimeString()}</span>
-                </div>
-                
-                {/* Location status indicator */}
-                <div className={`mt-3 p-2 rounded-md ${
-                  locationStatus.status === 'success' ? 'bg-green-50 border border-green-200' :
-                  locationStatus.status === 'warning' ? 'bg-amber-50 border border-amber-200' :
-                  'bg-red-50 border border-red-200'
-                }`}>
-                  <div className="flex items-center">
-                    {locationStatus.icon}
-                    <span className={`ml-2 text-sm font-medium ${
-                      locationStatus.status === 'success' ? 'text-green-800' :
-                      locationStatus.status === 'warning' ? 'text-amber-800' :
-                      'text-red-800'
-                    }`}>
-                      {locationStatus.message}
-                    </span>
-                  </div>
-                  {locationError && (
-                    <p className="text-xs text-red-600 mt-1">{locationError}</p>
-                  )}
                 </div>
               </div>
             </div>
@@ -334,6 +282,14 @@ const DriverDashboard: React.FC = () => {
                   details={selectedHospital ? `${selectedHospital.name} - ${selectedHospital.address}` : 'Please select a destination hospital'}
                   icon={<Hospital size={20} />}
                 />
+
+                {/* Distance Summary Card */}
+                {selectedHospital && (
+                  <div className="bg-white rounded-lg shadow-md p-4">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-3">Distance Summary</h3>
+                    <DistanceDisplay compact={true} />
+                  </div>
+                )}
               </div>
 
               {/* Enhanced Map view */}
@@ -346,8 +302,14 @@ const DriverDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Right column - Hospital selection and notifications */}
+          {/* Right column - Hospital selection and distance calculator */}
           <div className="xl:col-span-1 space-y-6">
+            {/* Distance Calculator - NEW */}
+            <DistanceCalculator 
+              showDetailedView={false}
+              maxHospitals={3}
+            />
+
             {/* Hospital selection with search and confirmation */}
             <HospitalSelect
               hospitals={hospitals}
