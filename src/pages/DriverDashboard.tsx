@@ -5,6 +5,7 @@ import EmergencyToggle from '../components/common/EmergencyToggle';
 import HospitalSelect from '../components/common/HospitalSelect';
 import LocationSelector from '../components/common/LocationSelector';
 import LiveLocationButton from '../components/common/LiveLocationButton';
+import CheckpointDisplay from '../components/checkpoints/CheckpointDisplay';
 import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import NotificationPanel from '../components/notifications/NotificationPanel';
@@ -347,7 +348,7 @@ const DriverDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Right column - Hospital selection and notifications */}
+          {/* Right column - Hospital selection, checkpoints, and notifications */}
           <div className="xl:col-span-1 space-y-6">
             {/* Hospital selection with search and confirmation */}
             <HospitalSelect
@@ -357,6 +358,9 @@ const DriverDashboard: React.FC = () => {
               onConfirm={handleHospitalConfirm}
               onSearchLocationChange={setSearchLocationForMap}
             />
+
+            {/* Emergency Checkpoints Display */}
+            <CheckpointDisplay showDetailedView={false} />
 
             {/* Notifications */}
             <NotificationPanel

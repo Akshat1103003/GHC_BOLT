@@ -46,3 +46,57 @@ export interface User {
   role: 'driver' | 'hospital' | 'admin';
   organization: string;
 }
+
+export interface EmergencyCheckpoint {
+  id: string;
+  code: string; // CP1, CP2, etc.
+  coordinates: [number, number];
+  distanceFromStart: number; // in kilometers
+  landmark: string;
+  streetIntersection: string;
+  safeStoppingArea: {
+    type: 'parking_lot' | 'emergency_bay' | 'hospital_entrance' | 'fire_station' | 'police_station';
+    description: string;
+    capacity: number; // number of vehicles
+  };
+  facilities: {
+    firstAid: boolean;
+    defibrillator: boolean;
+    oxygenSupply: boolean;
+    emergencyPhone: boolean;
+    restroom: boolean;
+    shelter: boolean;
+  };
+  visibility: {
+    roadVisibility: 'excellent' | 'good' | 'fair';
+    signage: boolean;
+    lighting: boolean;
+    emergencyBeacon: boolean;
+  };
+  accessibility: {
+    available24_7: boolean;
+    wheelchairAccessible: boolean;
+    emergencyVehicleAccess: boolean;
+  };
+  emergencyServices: {
+    nearestHospital: string;
+    distanceToHospital: number;
+    nearestFireStation: string;
+    distanceToFireStation: number;
+    nearestPoliceStation: string;
+    distanceToPoliceStation: number;
+  };
+  lastInspected: Date;
+  status: 'operational' | 'maintenance' | 'out_of_service';
+}
+
+export interface CheckpointRoute {
+  routeId: string;
+  patientLocation: [number, number];
+  hospitalLocation: [number, number];
+  totalDistance: number;
+  checkpoints: EmergencyCheckpoint[];
+  createdAt: Date;
+  estimatedTravelTime: number;
+  emergencyTravelTime: number;
+}

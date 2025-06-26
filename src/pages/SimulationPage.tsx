@@ -3,6 +3,7 @@ import { Play, Pause, RotateCcw, AlertCircle } from 'lucide-react';
 import MapView from '../components/map/MapView';
 import HospitalSelect from '../components/common/HospitalSelect';
 import LiveLocationButton from '../components/common/LiveLocationButton';
+import CheckpointDisplay from '../components/checkpoints/CheckpointDisplay';
 import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import { useAppContext } from '../contexts/AppContext';
@@ -33,6 +34,7 @@ const SimulationPage: React.FC = () => {
   const simulationSteps = [
     'Select a hospital and start the simulation',
     'Ambulance begins journey, emergency mode activated',
+    'Emergency checkpoints are activated along the route',
     'Hospital prepares for patient arrival',
     'Ambulance arrives at hospital',
     'Simulation complete',
@@ -84,7 +86,7 @@ const SimulationPage: React.FC = () => {
       // If we're at step 0, advance to step 1
       if (simulationStep === 0) {
         setSimulationStep(1);
-        setSimulationProgress(25);
+        setSimulationProgress(16.67); // 1/6 steps
         
         // Activate emergency mode if not already active
         if (!emergencyActive) {
@@ -92,14 +94,14 @@ const SimulationPage: React.FC = () => {
         }
       }
       
-      // Start simple simulation
-      const sim = startSimpleSimulation();
+      // Start enhanced simulation with checkpoints
+      const sim = startEnhancedSimulation();
       setSimulation(sim);
     }
   };
 
-  // Simple simulation without complex movement
-  const startSimpleSimulation = () => {
+  // Enhanced simulation with checkpoint activation
+  const startEnhancedSimulation = () => {
     let currentStep = simulationStep;
     let isRunning = true;
     
@@ -108,18 +110,24 @@ const SimulationPage: React.FC = () => {
       
       currentStep++;
       setSimulationStep(currentStep);
-      setSimulationProgress(currentStep * 25);
+      setSimulationProgress((currentStep / 6) * 100);
       
       if (currentStep === 2) {
+        setHospitalStatus('Emergency checkpoints activated along route');
+        setHospitalPreparationProgress(25);
+      } else if (currentStep === 3) {
         setHospitalStatus('Hospital notified - preparing for arrival');
         setHospitalPreparationProgress(50);
-      } else if (currentStep === 3) {
+      } else if (currentStep === 4) {
         setHospitalStatus('Hospital ready for patient arrival');
+        setHospitalPreparationProgress(75);
+      } else if (currentStep === 5) {
+        setHospitalStatus('Patient arrived - all checkpoints secured');
         setHospitalPreparationProgress(100);
-      } else if (currentStep >= 4) {
+      } else if (currentStep >= 6) {
         setIsSimulationRunning(false);
         setSimulation(null);
-        setHospitalStatus('Patient arrived - simulation complete');
+        setHospitalStatus('Simulation complete - Emergency response successful');
         
         // Deactivate emergency mode after a delay
         setTimeout(() => {
@@ -140,7 +148,7 @@ const SimulationPage: React.FC = () => {
     return {
       cancel: () => {
         isRunning = false;
-        console.log('🛑 Simulation cancelled');
+        console.log('🛑 Enhanced simulation cancelled');
       }
     };
   };
@@ -187,8 +195,8 @@ const SimulationPage: React.FC = () => {
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Interactive Simulation</h1>
-            <p className="text-gray-600">Experience the emergency response system in action</p>
+            <h1 className="text-2xl font-bold text-gray-900">Interactive Emergency Simulation</h1>
+            <p className="text-gray-600">Experience the complete emergency response system with checkpoints</p>
           </div>
           
           {/* Reset Button in Header */}
@@ -240,7 +248,7 @@ const SimulationPage: React.FC = () => {
                     ) : (
                       <>
                         <Play className="mr-2" size={18} />
-                        {simulationStep === 0 || simulationStep >= 4 ? 'Start' : 'Resume'}
+                        {simulationStep === 0 || simulationStep >= 6 ? 'Start' : 'Resume'}
                       </>
                     )}
                   </button>
@@ -290,7 +298,7 @@ const SimulationPage: React.FC = () => {
 
             {/* Hospital preparation status */}
             <StatusCard
-              title="Hospital Preparation"
+              title="Emergency Response Status"
               status={hospitalPreparationProgress > 0 ? (hospitalPreparationProgress >= 100 ? 'success' : 'info') : 'warning'}
               message={hospitalStatus}
               progress={hospitalPreparationProgress}
@@ -307,7 +315,7 @@ const SimulationPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Right column - Hospital selection and explanation */}
+          {/* Right column - Hospital selection, checkpoints, and explanation */}
           <div className="xl:col-span-1 space-y-6">
             {/* Hospital selection with search */}
             <HospitalSelect
@@ -316,6 +324,9 @@ const SimulationPage: React.FC = () => {
               onSelect={handleHospitalSelect}
               onSearchLocationChange={handleSearchLocationChange}
             />
+
+            {/* Emergency Checkpoints Display */}
+            <CheckpointDisplay showDetailedView={false} />
             
             {/* Simulation explanation */}
             <div className="bg-white rounded-lg shadow-md p-6">
@@ -323,15 +334,15 @@ const SimulationPage: React.FC = () => {
               
               <div className="space-y-4">
                 <p className="text-gray-600 text-sm">
-                  This simulation demonstrates our emergency response system with real-time route visualization and hospital coordination.
+                  This enhanced simulation demonstrates our complete emergency response system with real-time checkpoints and hospital coordination.
                 </p>
                 
                 <ol className="list-decimal list-inside space-y-2 text-gray-600 text-sm pl-2">
                   <li>Use Live Location Control to set your position</li>
                   <li>Search for a location or select a hospital</li>
                   <li>Press Start to begin the simulation</li>
+                  <li>Watch emergency checkpoints activate at 5km intervals</li>
                   <li>Adjust speed using the slider</li>
-                  <li>Watch the route display on the map</li>
                   <li>Monitor hospital preparation status</li>
                 </ol>
                 
@@ -343,7 +354,13 @@ const SimulationPage: React.FC = () => {
                 
                 <div className="mt-4 p-3 bg-green-50 rounded-md">
                   <p className="text-xs text-green-800">
-                    <strong>Real-time Data:</strong> System integrates with live databases for synchronized emergency response coordination.
+                    <strong>Emergency Checkpoints:</strong> Automatically generated at 5km intervals with first aid facilities, emergency phones, and 24/7 accessibility.
+                  </p>
+                </div>
+                
+                <div className="mt-4 p-3 bg-red-50 rounded-md">
+                  <p className="text-xs text-red-800">
+                    <strong>Real-time Coordination:</strong> System integrates with live databases for synchronized emergency response across all checkpoints and hospitals.
                   </p>
                 </div>
               </div>
