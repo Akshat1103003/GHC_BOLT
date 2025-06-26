@@ -5,12 +5,12 @@ import EmergencyToggle from '../components/common/EmergencyToggle';
 import HospitalSelect from '../components/common/HospitalSelect';
 import LocationSelector from '../components/common/LocationSelector';
 import LiveLocationButton from '../components/common/LiveLocationButton';
-import DistanceCalculator from '../components/distance/DistanceCalculator';
-import DistanceDisplay from '../components/distance/DistanceDisplay';
+import SimpleDistanceCalculator from '../components/distance/SimpleDistanceCalculator';
 import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import NotificationPanel from '../components/notifications/NotificationPanel';
 import { useAppContext } from '../contexts/AppContext';
+import { calculateDistance, calculateDuration } from '../utils/routeUtils';
 
 const DriverDashboard: React.FC = () => {
   const {
@@ -130,6 +130,24 @@ const DriverDashboard: React.FC = () => {
 
   const locationStatus = getLocationStatus();
 
+  // Calculate distance to selected hospital
+  const getDistanceToHospital = () => {
+    if (!selectedHospital || !initialLocationSet) return null;
+    
+    const distance = calculateDistance(ambulanceLocation, selectedHospital.coordinates);
+    const duration = calculateDuration(ambulanceLocation, selectedHospital.coordinates);
+    const emergencyDuration = duration * 0.7; // 30% faster in emergency mode
+    
+    return {
+      distance: distance.toFixed(1),
+      duration: Math.ceil(emergencyActive ? emergencyDuration : duration),
+      emergencyDuration: Math.ceil(emergencyDuration),
+      normalDuration: Math.ceil(duration)
+    };
+  };
+
+  const distanceInfo = getDistanceToHospital();
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-6">
@@ -212,9 +230,47 @@ const DriverDashboard: React.FC = () => {
               onLocationChange={handleEmergencyLocationChange}
             />
 
-            {/* Distance Display - NEW */}
-            {selectedHospital && (
-              <DistanceDisplay compact={false} />
+            {/* Distance to Selected Hospital */}
+            {selectedHospital && distanceInfo && (
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                  <MapPin className="mr-2" size={18} />
+                  Distance to Hospital
+                </h2>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Hospital:</span>
+                    <span className="font-medium text-sm">{selectedHospital.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Distance:</span>
+                    <span className="font-bold text-blue-600">{distanceInfo.distance} km</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Travel Time:</span>
+                    <span className={`font-bold ${emergencyActive ? 'text-red-600' : 'text-green-600'}`}>
+                      {distanceInfo.duration} min
+                      {emergencyActive && <span className="text-xs ml-1">EMERGENCY</span>}
+                    </span>
+                  </div>
+                  {emergencyActive && (
+                    <div className="pt-2 border-t border-gray-200">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Normal time:</span>
+                        <span>{distanceInfo.normalDuration} min</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Emergency time:</span>
+                        <span className="text-red-600 font-medium">{distanceInfo.emergencyDuration} min</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-green-600 font-medium">
+                        <span>Time saved:</span>
+                        <span>{distanceInfo.normalDuration - distanceInfo.emergencyDuration} min</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
 
             {/* Patient information */}
@@ -274,23 +330,13 @@ const DriverDashboard: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <StatusCard
-                  title="Hospital Status"
-                  status={selectedHospital?.emergencyReady ? 'success' : 'warning'}
-                  message={selectedHospital ? (selectedHospital.emergencyReady ? 'Ready for emergency' : 'Limited capacity') : 'No hospital selected'}
-                  details={selectedHospital ? `${selectedHospital.name} - ${selectedHospital.address}` : 'Please select a destination hospital'}
-                  icon={<Hospital size={20} />}
-                />
-
-                {/* Distance Summary Card */}
-                {selectedHospital && (
-                  <div className="bg-white rounded-lg shadow-md p-4">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-3">Distance Summary</h3>
-                    <DistanceDisplay compact={true} />
-                  </div>
-                )}
-              </div>
+              <StatusCard
+                title="Hospital Status"
+                status={selectedHospital?.emergencyReady ? 'success' : 'warning'}
+                message={selectedHospital ? (selectedHospital.emergencyReady ? 'Ready for emergency' : 'Limited capacity') : 'No hospital selected'}
+                details={selectedHospital ? `${selectedHospital.name} - ${selectedHospital.address}` : 'Please select a destination hospital'}
+                icon={<Hospital size={20} />}
+              />
 
               {/* Enhanced Map view */}
               <div className="bg-white rounded-lg shadow-lg overflow-hidden">
@@ -302,13 +348,10 @@ const DriverDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Right column - Hospital selection and distance calculator */}
+          {/* Right column - Distance calculator and hospital selection */}
           <div className="xl:col-span-1 space-y-6">
-            {/* Distance Calculator - NEW */}
-            <DistanceCalculator 
-              showDetailedView={false}
-              maxHospitals={3}
-            />
+            {/* Simple Distance Calculator */}
+            <SimpleDistanceCalculator maxHospitals={5} />
 
             {/* Hospital selection with search and confirmation */}
             <HospitalSelect
