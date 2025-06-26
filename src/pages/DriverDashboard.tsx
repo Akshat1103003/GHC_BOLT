@@ -4,6 +4,7 @@ import MapView from '../components/map/MapView';
 import EmergencyToggle from '../components/common/EmergencyToggle';
 import HospitalSelect from '../components/common/HospitalSelect';
 import LocationSelector from '../components/common/LocationSelector';
+import LiveLocationButton from '../components/common/LiveLocationButton';
 import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import NotificationPanel from '../components/notifications/NotificationPanel';
@@ -198,6 +199,9 @@ const DriverDashboard: React.FC = () => {
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* Left column - Controls */}
           <div className="xl:col-span-1 space-y-6">
+            {/* Live Location Control - NEW */}
+            <LiveLocationButton />
+
             {/* Emergency toggle */}
             <EmergencyToggle />
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Play, Pause, RotateCcw, AlertCircle } from 'lucide-react';
 import MapView from '../components/map/MapView';
 import HospitalSelect from '../components/common/HospitalSelect';
+import LiveLocationButton from '../components/common/LiveLocationButton';
 import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import { useAppContext } from '../contexts/AppContext';
@@ -200,6 +201,9 @@ const SimulationPage: React.FC = () => {
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* Left column - Controls */}
           <div className="xl:col-span-1 space-y-6">
+            {/* Live Location Control - NEW */}
+            <LiveLocationButton showSettings={false} />
+
             {/* Simulation controls */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Simulation Controls</h2>
@@ -323,6 +327,7 @@ const SimulationPage: React.FC = () => {
                 </p>
                 
                 <ol className="list-decimal list-inside space-y-2 text-gray-600 text-sm pl-2">
+                  <li>Use Live Location Control to set your position</li>
                   <li>Search for a location or select a hospital</li>
                   <li>Press Start to begin the simulation</li>
                   <li>Adjust speed using the slider</li>
@@ -332,7 +337,7 @@ const SimulationPage: React.FC = () => {
                 
                 <div className="mt-4 p-3 bg-blue-50 rounded-md">
                   <p className="text-xs text-blue-800">
-                    <strong>Route Visualization:</strong> Routes are automatically created and displayed when you select a hospital, with real-time path optimization.
+                    <strong>Live Location:</strong> The system automatically detects your real location and bypasses the default New York starting point.
                   </p>
                 </div>
                 
