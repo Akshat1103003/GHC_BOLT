@@ -100,3 +100,118 @@ export interface CheckpointRoute {
   estimatedTravelTime: number;
   emergencyTravelTime: number;
 }
+
+// New comprehensive checkpoint types
+export interface MedicalFacility {
+  id: string;
+  name: string;
+  type: 'emergency_station' | 'medical_clinic' | 'ambulance_station' | 'first_aid_center' | 'temporary_camp';
+  coordinates: [number, number];
+  address: string;
+  phone: string;
+  operationalStatus: 'operational' | 'limited' | 'closed' | 'emergency_only';
+  availability: {
+    available24_7: boolean;
+    currentlyOpen: boolean;
+    nextOpenTime?: Date;
+    emergencyAccess: boolean;
+  };
+  services: {
+    basicFirstAid: boolean;
+    advancedLifeSupport: boolean;
+    trauma: boolean;
+    cardiac: boolean;
+    pediatric: boolean;
+    psychiatric: boolean;
+    pharmacy: boolean;
+    laboratory: boolean;
+    imaging: boolean;
+    surgery: boolean;
+  };
+  equipment: {
+    defibrillator: boolean;
+    ventilator: boolean;
+    oxygenSupply: boolean;
+    emergencyMedications: boolean;
+    ambulanceEquipment: boolean;
+    wheelchairAccess: boolean;
+  };
+  staffing: {
+    doctors: number;
+    nurses: number;
+    paramedics: number;
+    technicians: number;
+    currentCapacity: number;
+    maxCapacity: number;
+  };
+  responseTime: {
+    averageMinutes: number;
+    currentEstimate: number;
+    priority: 'high' | 'medium' | 'low';
+  };
+  distanceFromPatient: number;
+  distanceFromRoute: number;
+  lastUpdated: Date;
+}
+
+export interface TrafficData {
+  segmentId: string;
+  coordinates: [number, number][];
+  congestionLevel: 'free' | 'light' | 'moderate' | 'heavy' | 'severe';
+  averageSpeed: number; // km/h
+  incidents: Array<{
+    type: 'accident' | 'construction' | 'road_closure' | 'weather' | 'event';
+    severity: 'minor' | 'major' | 'critical';
+    description: string;
+    estimatedClearTime?: Date;
+  }>;
+  estimatedDelay: number; // minutes
+  alternativeRoutes: Array<{
+    description: string;
+    additionalDistance: number;
+    timeSaving: number;
+  }>;
+  lastUpdated: Date;
+}
+
+export interface ComprehensiveCheckpointMap {
+  patientLocation: {
+    coordinates: [number, number];
+    address: string;
+    timestamp: Date;
+  };
+  hospitalDestination: {
+    hospital: Hospital;
+    estimatedArrival: Date;
+  };
+  primaryRoute: {
+    coordinates: [number, number][];
+    distance: number;
+    estimatedTime: number;
+    emergencyTime: number;
+  };
+  alternativeRoutes: Array<{
+    id: string;
+    coordinates: [number, number][];
+    distance: number;
+    estimatedTime: number;
+    advantages: string[];
+    disadvantages: string[];
+  }>;
+  emergencyCheckpoints: EmergencyCheckpoint[];
+  medicalFacilities: MedicalFacility[];
+  trafficData: TrafficData[];
+  lastUpdated: Date;
+  nextUpdateTime: Date;
+}
+
+export interface CheckpointSortOptions {
+  sortBy: 'distance' | 'status' | 'services' | 'response_time';
+  filterBy: {
+    operationalOnly: boolean;
+    available24_7: boolean;
+    withinRadius: number; // miles
+    facilityTypes: string[];
+    minimumServices: string[];
+  };
+}
