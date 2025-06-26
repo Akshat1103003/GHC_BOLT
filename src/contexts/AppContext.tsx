@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Hospital, Route, Notification } from '../types';
 import { mockHospitals } from '../utils/mockData';
-import { createRoute } from '../utils/routeUtils';
+// Remove the route creation import
+// import { createRoute } from '../utils/routeUtils';
 
 // Check if Supabase is available
 const isSupabaseAvailable = () => {
@@ -239,30 +240,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log('🏥 AppContext: Selecting hospital:', hospital?.name || 'None');
     setSelectedHospital(hospital);
     
+    // DISABLED: Route creation functionality
+    // No longer automatically create routes when hospital is selected
     if (hospital) {
-      // Set route creation state
-      setIsCreatingRoute(true);
-      
-      // Automatically create route when hospital is selected
-      try {
-        const route = createRoute(ambulanceLocation, hospital);
-        setCurrentRoute(route);
-        console.log('🗺️ AppContext: Route created automatically:', {
-          distance: route.distance.toFixed(1) + 'km',
-          duration: Math.ceil(route.duration) + 'min',
-          waypoints: route.waypoints.length
-        });
-        
-        // Route creation completed successfully
-        setTimeout(() => {
-          setIsCreatingRoute(false);
-        }, 500); // Small delay to show the creation process
-        
-      } catch (error) {
-        console.error('❌ AppContext: Failed to create route:', error);
-        setCurrentRoute(null);
-        setIsCreatingRoute(false);
-      }
+      console.log('🏥 Hospital selected, but route creation is disabled');
     } else {
       // Clear route when hospital is deselected
       setCurrentRoute(null);
@@ -288,24 +269,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setAmbulanceLocation(location);
     }
 
-    // Update route if hospital is selected
-    if (selectedHospital) {
-      setIsCreatingRoute(true);
-      try {
-        const route = createRoute(location, selectedHospital);
-        setCurrentRoute(route);
-        console.log('🗺️ AppContext: Route updated for new ambulance location');
-        
-        // Route update completed
-        setTimeout(() => {
-          setIsCreatingRoute(false);
-        }, 500);
-        
-      } catch (error) {
-        console.error('❌ AppContext: Failed to update route:', error);
-        setIsCreatingRoute(false);
-      }
-    }
+    // DISABLED: Route update functionality
+    // No longer update routes when ambulance location changes
+    console.log('🗺️ AppContext: Route updates disabled');
   };
 
   const markNotificationAsRead = async (id: string) => {
