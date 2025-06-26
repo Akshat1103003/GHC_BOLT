@@ -38,10 +38,11 @@ const CheckpointDisplay: React.FC<CheckpointDisplayProps> = ({
     ambulanceLocation, 
     selectedHospital, 
     emergencyActive,
-    initialLocationSet 
+    initialLocationSet,
+    checkpointRoute,
+    setCheckpointRoute
   } = useAppContext();
 
-  const [checkpointRoute, setCheckpointRoute] = useState<CheckpointRoute | null>(null);
   const [nearestCheckpoint, setNearestCheckpoint] = useState<{ checkpoint: EmergencyCheckpoint; distance: number } | null>(null);
   const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null);
   const [showValidation, setShowValidation] = useState(false);
@@ -60,12 +61,12 @@ const CheckpointDisplay: React.FC<CheckpointDisplayProps> = ({
       const nearest = findNearestCheckpoint(ambulanceLocation, route);
       setNearestCheckpoint(nearest);
       
-      console.log(`🚨 Generated emergency checkpoint route with ${route.checkpoints.length} checkpoints`);
+      console.log(`🚨 Generated emergency checkpoint route with ${route.checkpoints.length} checkpoints using geodesic interpolation`);
     } else {
       setCheckpointRoute(null);
       setNearestCheckpoint(null);
     }
-  }, [selectedHospital, ambulanceLocation, initialLocationSet]);
+  }, [selectedHospital, ambulanceLocation, initialLocationSet, setCheckpointRoute]);
 
   // Update nearest checkpoint when ambulance moves
   useEffect(() => {
@@ -115,7 +116,7 @@ const CheckpointDisplay: React.FC<CheckpointDisplayProps> = ({
         <div className="text-center text-gray-500">
           <Target className="mx-auto mb-3 text-gray-400" size={24} />
           <p>Select a hospital to generate emergency checkpoints</p>
-          <p className="text-sm mt-1">Checkpoints will be placed at 5km intervals along the route</p>
+          <p className="text-sm mt-1">Checkpoints will be placed at 5km intervals using geodesic interpolation</p>
         </div>
       </div>
     );
@@ -127,6 +128,7 @@ const CheckpointDisplay: React.FC<CheckpointDisplayProps> = ({
         <div className="text-center text-gray-500">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
           <p>Generating emergency checkpoints...</p>
+          <p className="text-sm mt-1">Using geodesic interpolation for accurate positioning</p>
         </div>
       </div>
     );
@@ -192,6 +194,15 @@ const CheckpointDisplay: React.FC<CheckpointDisplayProps> = ({
           <div className="bg-white rounded-lg p-2 text-center">
             <div className="text-xs text-gray-600">Operational</div>
             <div className="font-bold text-orange-600">{statistics.operational}/{statistics.total}</div>
+          </div>
+        </div>
+
+        {/* Geodesic Interpolation Indicator */}
+        <div className="mb-3 p-2 bg-blue-100 border border-blue-200 rounded-lg">
+          <div className="flex items-center text-sm text-blue-800">
+            <Compass size={14} className="mr-2" />
+            <span className="font-medium">Geodesic Interpolation Active</span>
+            <span className="ml-2 text-xs">- Checkpoints positioned using great-circle calculations for maximum accuracy</span>
           </div>
         </div>
 
@@ -443,6 +454,10 @@ const CheckpointDisplay: React.FC<CheckpointDisplayProps> = ({
             <Clock size={12} className="mr-1" />
             <span>Generated: {checkpointRoute.createdAt.toLocaleTimeString()}</span>
           </div>
+        </div>
+        
+        <div className="mt-1 text-xs text-blue-600">
+          🎯 Geodesic interpolation ensures accurate 5km spacing along great-circle path
         </div>
         
         {emergencyActive && (

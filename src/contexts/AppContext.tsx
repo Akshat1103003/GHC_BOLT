@@ -1,9 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Hospital, Route, Notification } from '../types';
+import { Hospital, Route, Notification, CheckpointRoute } from '../types';
 import { mockHospitals } from '../utils/mockData';
-import { CheckpointRoute } from '../types';
-// Remove the route creation import
-// import { createRoute } from '../utils/routeUtils';
 
 // Check if Supabase is available
 const isSupabaseAvailable = () => {
@@ -32,6 +29,7 @@ interface AppContextType {
   locationError: string | null;
   initialLocationSet: boolean;
   checkpointRoute: CheckpointRoute | null;
+  setCheckpointRoute: (route: CheckpointRoute | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -243,16 +241,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log('🏥 AppContext: Selecting hospital:', hospital?.name || 'None');
     setSelectedHospital(hospital);
     
-    // DISABLED: Route creation functionality
-    // No longer automatically create routes when hospital is selected
     if (hospital) {
-      console.log('🏥 Hospital selected, but route creation is disabled');
+      console.log('🏥 Hospital selected, checkpoints will be generated automatically');
     } else {
       // Clear route when hospital is deselected
       setCurrentRoute(null);
       setIsCreatingRoute(false);
       setCheckpointRoute(null);
-      console.log('🗺️ AppContext: Route cleared');
+      console.log('🗺️ AppContext: Route and checkpoints cleared');
     }
   };
 
@@ -273,9 +269,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setAmbulanceLocation(location);
     }
 
-    // DISABLED: Route update functionality
-    // No longer update routes when ambulance location changes
-    console.log('🗺️ AppContext: Route updates disabled');
+    // Checkpoints will be regenerated automatically when ambulance location changes
+    console.log('🗺️ AppContext: Checkpoints will be regenerated for new location');
   };
 
   const markNotificationAsRead = async (id: string) => {
@@ -313,7 +308,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Deactivate emergency mode
       setEmergencyActive(false);
       
-      // Clear selected hospital and route
+      // Clear selected hospital, route, and checkpoints
       setSelectedHospital(null);
       setCurrentRoute(null);
       setIsCreatingRoute(false);
@@ -345,6 +340,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     locationError,
     initialLocationSet,
     checkpointRoute,
+    setCheckpointRoute,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

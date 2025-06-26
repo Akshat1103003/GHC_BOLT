@@ -1,13 +1,80 @@
 import { EmergencyCheckpoint, CheckpointRoute, Hospital } from '../types';
 import { calculateDistance, calculateDuration } from './routeUtils';
 
-// Generate emergency checkpoints at 5km intervals
+// Convert degrees to radians
+const toRadians = (degrees: number): number => degrees * (Math.PI / 180);
+
+// Convert radians to degrees
+const toDegrees = (radians: number): number => radians * (180 / Math.PI);
+
+// Calculate intermediate point along great-circle path using geodesic interpolation
+const calculateIntermediatePoint = (
+  point1: [number, number],
+  point2: [number, number],
+  fraction: number
+): [number, number] => {
+  const lat1 = toRadians(point1[0]);
+  const lon1 = toRadians(point1[1]);
+  const lat2 = toRadians(point2[0]);
+  const lon2 = toRadians(point2[1]);
+
+  // Calculate the angular distance between the two points
+  const deltaLat = lat2 - lat1;
+  const deltaLon = lon2 - lon1;
+  
+  const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+            Math.cos(lat1) * Math.cos(lat2) *
+            Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
+  const angularDistance = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  // Handle edge cases
+  if (angularDistance === 0) {
+    return point1; // Points are the same
+  }
+
+  // Calculate intermediate point using spherical interpolation
+  const A = Math.sin((1 - fraction) * angularDistance) / Math.sin(angularDistance);
+  const B = Math.sin(fraction * angularDistance) / Math.sin(angularDistance);
+
+  const x = A * Math.cos(lat1) * Math.cos(lon1) + B * Math.cos(lat2) * Math.cos(lon2);
+  const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
+  const z = A * Math.sin(lat1) + B * Math.sin(lat2);
+
+  const lat = Math.atan2(z, Math.sqrt(x * x + y * y));
+  const lon = Math.atan2(y, x);
+
+  return [toDegrees(lat), toDegrees(lon)];
+};
+
+// Calculate accurate distance along great-circle path
+const calculateGreatCircleDistance = (
+  point1: [number, number],
+  point2: [number, number]
+): number => {
+  const R = 6371; // Earth's radius in kilometers
+  const lat1 = toRadians(point1[0]);
+  const lon1 = toRadians(point1[1]);
+  const lat2 = toRadians(point2[0]);
+  const lon2 = toRadians(point2[1]);
+
+  const deltaLat = lat2 - lat1;
+  const deltaLon = lon2 - lon1;
+
+  const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+            Math.cos(lat1) * Math.cos(lat2) *
+            Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+};
+
+// Generate emergency checkpoints at 5km intervals using geodesic interpolation
 export const generateEmergencyCheckpoints = (
   patientLocation: [number, number],
   hospitalLocation: [number, number],
   hospital: Hospital
 ): CheckpointRoute => {
-  const totalDistance = calculateDistance(patientLocation, hospitalLocation);
+  const totalDistance = calculateGreatCircleDistance(patientLocation, hospitalLocation);
   const estimatedTravelTime = calculateDuration(patientLocation, hospitalLocation);
   const emergencyTravelTime = estimatedTravelTime * 0.7; // 30% faster in emergency mode
   
@@ -17,19 +84,22 @@ export const generateEmergencyCheckpoints = (
   // Calculate number of checkpoints needed
   const numberOfCheckpoints = Math.floor(totalDistance / checkpointInterval);
   
-  console.log(`🚨 Generating ${numberOfCheckpoints} emergency checkpoints for ${totalDistance.toFixed(1)}km route`);
+  console.log(`🚨 Generating ${numberOfCheckpoints} emergency checkpoints for ${totalDistance.toFixed(1)}km route using geodesic interpolation`);
   
   for (let i = 1; i <= numberOfCheckpoints; i++) {
     const distanceFromStart = i * checkpointInterval;
-    const progress = distanceFromStart / totalDistance;
+    const fraction = distanceFromStart / totalDistance;
     
-    // Calculate checkpoint coordinates using linear interpolation
-    const checkpointLat = patientLocation[0] + (hospitalLocation[0] - patientLocation[0]) * progress;
-    const checkpointLng = patientLocation[1] + (hospitalLocation[1] - patientLocation[1]) * progress;
-    const coordinates: [number, number] = [checkpointLat, checkpointLng];
+    // Calculate checkpoint coordinates using geodesic interpolation
+    const coordinates = calculateIntermediatePoint(patientLocation, hospitalLocation, fraction);
+    
+    // Verify the calculated distance is accurate
+    const actualDistanceFromStart = calculateGreatCircleDistance(patientLocation, coordinates);
+    
+    console.log(`📍 Checkpoint ${i}: Target ${distanceFromStart}km, Actual ${actualDistanceFromStart.toFixed(2)}km, Coordinates: [${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}]`);
     
     // Generate realistic checkpoint data
-    const checkpoint = generateCheckpointData(i, coordinates, distanceFromStart, hospital);
+    const checkpoint = generateCheckpointData(i, coordinates, actualDistanceFromStart, hospital);
     checkpoints.push(checkpoint);
   }
   
@@ -55,7 +125,13 @@ export const generateEmergencyCheckpoints = (
     emergencyTravelTime
   };
   
-  console.log(`✅ Generated ${checkpoints.length} emergency checkpoints covering ${totalDistance.toFixed(1)}km`);
+  console.log(`✅ Generated ${checkpoints.length} emergency checkpoints covering ${totalDistance.toFixed(1)}km using geodesic interpolation`);
+  console.log(`🎯 Average checkpoint spacing accuracy: ${(checkpoints.reduce((sum, cp, idx) => {
+    const expectedDistance = (idx + 1) * checkpointInterval;
+    const actualDistance = cp.distanceFromStart;
+    return sum + Math.abs(expectedDistance - actualDistance);
+  }, 0) / checkpoints.length).toFixed(3)}km deviation`);
+  
   return route;
 };
 
@@ -102,7 +178,7 @@ const generateCheckpointData = (
     },
     emergencyServices: {
       nearestHospital: hospital.name,
-      distanceToHospital: calculateDistance(coordinates, hospital.coordinates),
+      distanceToHospital: calculateGreatCircleDistance(coordinates, hospital.coordinates),
       nearestFireStation: `Fire Station ${index + 10}`,
       distanceToFireStation: Math.random() * 3 + 1, // 1-4 km
       nearestPoliceStation: `Police Station ${index + 20}`,
@@ -264,7 +340,7 @@ export const getCheckpointStatistics = (route: CheckpointRoute) => {
   };
 };
 
-// Find nearest checkpoint to a given location
+// Find nearest checkpoint to a given location using great-circle distance
 export const findNearestCheckpoint = (
   location: [number, number],
   route: CheckpointRoute
@@ -272,10 +348,10 @@ export const findNearestCheckpoint = (
   if (route.checkpoints.length === 0) return null;
   
   let nearest = route.checkpoints[0];
-  let minDistance = calculateDistance(location, nearest.coordinates);
+  let minDistance = calculateGreatCircleDistance(location, nearest.coordinates);
   
   for (const checkpoint of route.checkpoints) {
-    const distance = calculateDistance(location, checkpoint.coordinates);
+    const distance = calculateGreatCircleDistance(location, checkpoint.coordinates);
     if (distance < minDistance) {
       minDistance = distance;
       nearest = checkpoint;
@@ -344,7 +420,8 @@ export const exportCheckpointData = (route: CheckpointRoute): string => {
       totalDistance: `${route.totalDistance.toFixed(1)} km`,
       estimatedTime: `${Math.ceil(route.estimatedTravelTime)} minutes`,
       emergencyTime: `${Math.ceil(route.emergencyTravelTime)} minutes`,
-      checkpointCount: route.checkpoints.length
+      checkpointCount: route.checkpoints.length,
+      interpolationMethod: 'geodesic'
     },
     checkpoints: route.checkpoints.map(cp => ({
       code: cp.code,
