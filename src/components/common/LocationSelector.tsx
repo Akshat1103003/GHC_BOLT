@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Navigation, Search, Target, AlertCircle, Loader2 } from 'lucide-react';
+import { MapPin, Navigation, Search, Target, AlertCircle, Loader2, Crosshair } from 'lucide-react';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
+import { useAppContext } from '../../contexts/AppContext';
 
 interface LocationSelectorProps {
   onLocationChange: (location: [number, number], locationType: 'current' | 'selected', locationName?: string) => void;
@@ -11,13 +12,14 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
   onLocationChange,
   className = '',
 }) => {
+  const { ambulanceLocation, isDetectingLocation, locationError, initialLocationSet } = useAppContext();
   const [locationType, setLocationType] = useState<'current' | 'selected'>('current');
   const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<[number, number] | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
+  const [localLocationError, setLocalLocationError] = useState<string | null>(null);
   const [searchSuggestions, setSearchSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedLocationName, setSelectedLocationName] = useState<string>('');
@@ -41,12 +43,19 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
     }
   }, [placesLibrary]);
 
+  // Sync with app context ambulance location
+  useEffect(() => {
+    if (ambulanceLocation && initialLocationSet) {
+      setCurrentLocation(ambulanceLocation);
+    }
+  }, [ambulanceLocation, initialLocationSet]);
+
   // Get current location when component mounts or when switching to current location
   useEffect(() => {
-    if (locationType === 'current' && !currentLocation) {
+    if (locationType === 'current' && !currentLocation && !isDetectingLocation) {
       getCurrentLocation();
     }
-  }, [locationType]);
+  }, [locationType, isDetectingLocation]);
 
   // Get autocomplete suggestions
   useEffect(() => {
@@ -94,10 +103,10 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
 
   const getCurrentLocation = () => {
     setIsGettingLocation(true);
-    setLocationError(null);
+    setLocalLocationError(null);
 
     if (!navigator.geolocation) {
-      setLocationError('Geolocation is not supported by this browser');
+      setLocalLocationError('Geolocation is not supported by this browser');
       setIsGettingLocation(false);
       return;
     }
@@ -110,6 +119,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
         ];
         setCurrentLocation(location);
         setIsGettingLocation(false);
+        setLocalLocationError(null);
       },
       (error) => {
         let errorMessage = 'Unable to get your location';
@@ -124,7 +134,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
             errorMessage = 'Location request timed out.';
             break;
         }
-        setLocationError(errorMessage);
+        setLocalLocationError(errorMessage);
         setIsGettingLocation(false);
       },
       {
@@ -139,7 +149,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
     if (!geocoder) return;
 
     setIsGeocoding(true);
-    setLocationError(null);
+    setLocalLocationError(null);
 
     try {
       const response = await geocoder.geocode({ placeId: placeId });
@@ -151,16 +161,16 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
         setSelectedLocationName(description);
         setApiError(null);
       } else {
-        setLocationError('Location not found');
+        setLocalLocationError('Location not found');
       }
     } catch (error: any) {
       console.error('Geocoding by place ID error:', error);
       
       if (error.code === 'GEOCODER_GEOCODE' && error.message && error.message.includes('REQUEST_DENIED')) {
-        setLocationError('Geocoding API access denied. Please check that Geocoding API is enabled.');
+        setLocalLocationError('Geocoding API access denied. Please check that Geocoding API is enabled.');
         setApiError('Geocoding API not properly configured. Please enable the Geocoding API in Google Cloud Console.');
       } else {
-        setLocationError('Failed to get location coordinates');
+        setLocalLocationError('Failed to get location coordinates');
       }
     } finally {
       setIsGeocoding(false);
@@ -175,17 +185,17 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
 
   const handleLocationTypeChange = (type: 'current' | 'selected') => {
     setLocationType(type);
-    setLocationError(null);
+    setLocalLocationError(null);
     setApiError(null);
     
-    if (type === 'current' && !currentLocation) {
+    if (type === 'current' && !currentLocation && !isDetectingLocation) {
       getCurrentLocation();
     }
   };
 
   const getLocationDisplayText = () => {
     if (locationType === 'current') {
-      if (isGettingLocation) return 'Getting your location...';
+      if (isDetectingLocation || isGettingLocation) return 'Getting your location...';
       if (currentLocation) {
         return `${currentLocation[0].toFixed(4)}, ${currentLocation[1].toFixed(4)}`;
       }
@@ -198,11 +208,28 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
     }
   };
 
+  const getLocationStatus = () => {
+    if (locationType === 'current') {
+      if (isDetectingLocation) return { status: 'detecting', message: 'Detecting live location...', color: 'text-amber-600' };
+      if (locationError) return { status: 'error', message: 'Location detection failed', color: 'text-red-600' };
+      if (currentLocation) return { status: 'success', message: 'Live location active', color: 'text-green-600' };
+      return { status: 'pending', message: 'Location required', color: 'text-gray-600' };
+    } else {
+      if (selectedLocation) return { status: 'success', message: 'Custom location set', color: 'text-green-600' };
+      return { status: 'pending', message: 'Search for location', color: 'text-gray-600' };
+    }
+  };
+
+  const status = getLocationStatus();
+
   return (
     <div className={`bg-white rounded-lg shadow-md p-4 ${className}`}>
       <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
         <MapPin className="mr-2" size={20} />
         Emergency Location
+        {isDetectingLocation && (
+          <Crosshair className="ml-2 animate-spin text-amber-500" size={16} />
+        )}
       </h3>
 
       {/* API Error Alert */}
@@ -218,6 +245,32 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
         </div>
       )}
 
+      {/* Live Location Detection Status */}
+      {isDetectingLocation && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+          <div className="flex items-center text-sm text-amber-800">
+            <Crosshair size={16} className="mr-2 flex-shrink-0 animate-spin" />
+            <div>
+              <p className="font-medium">Detecting Your Live Location</p>
+              <p className="text-xs mt-1">Please allow location access for accurate emergency response</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location Error from App Context */}
+      {locationError && locationType === 'current' && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+          <div className="flex items-center text-sm text-red-800">
+            <AlertCircle size={16} className="mr-2 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Location Detection Failed</p>
+              <p className="text-xs mt-1">{locationError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Location Type Toggle */}
       <div className="mb-4">
         <div className="flex rounded-lg border border-gray-300 overflow-hidden">
@@ -228,10 +281,15 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
                 ? 'bg-blue-600 text-white'
                 : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
+            disabled={isDetectingLocation}
           >
             <div className="flex items-center justify-center">
-              <Navigation size={16} className="mr-2" />
-              Current Location
+              {isDetectingLocation ? (
+                <Crosshair size={16} className="mr-2 animate-spin" />
+              ) : (
+                <Navigation size={16} className="mr-2" />
+              )}
+              Live Location
             </div>
           </button>
           <button
@@ -258,10 +316,10 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
             <span className="text-sm text-gray-600">Your current location:</span>
             <button
               onClick={getCurrentLocation}
-              disabled={isGettingLocation}
+              disabled={isGettingLocation || isDetectingLocation}
               className="text-blue-600 hover:text-blue-700 text-sm font-medium disabled:opacity-50"
             >
-              {isGettingLocation ? (
+              {isGettingLocation || isDetectingLocation ? (
                 <div className="flex items-center">
                   <Loader2 size={14} className="animate-spin mr-1" />
                   Getting...
@@ -275,13 +333,23 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
             </button>
           </div>
           
-          <div className="p-3 bg-gray-50 rounded-md">
-            <p className="text-sm font-medium text-gray-900">
+          <div className={`p-3 rounded-md ${
+            status.status === 'success' ? 'bg-green-50 border border-green-200' :
+            status.status === 'detecting' ? 'bg-amber-50 border border-amber-200' :
+            status.status === 'error' ? 'bg-red-50 border border-red-200' :
+            'bg-gray-50'
+          }`}>
+            <p className={`text-sm font-medium ${status.color}`}>
               {getLocationDisplayText()}
             </p>
             {currentLocation && (
               <p className="text-xs text-gray-500 mt-1">
-                Accuracy: GPS location
+                Accuracy: GPS location {initialLocationSet ? '(Live)' : '(Manual)'}
+              </p>
+            )}
+            {isDetectingLocation && (
+              <p className="text-xs text-amber-600 mt-1 animate-pulse">
+                🔍 Automatically detecting your location...
               </p>
             )}
           </div>
@@ -346,29 +414,32 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
       )}
 
       {/* Error Display */}
-      {locationError && (
+      {localLocationError && (
         <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
           <div className="flex items-center text-sm text-red-800">
             <AlertCircle size={14} className="mr-2 flex-shrink-0" />
-            <span>{locationError}</span>
+            <span>{localLocationError}</span>
           </div>
         </div>
       )}
 
       {/* Status Indicator */}
-      <div className="mt-4 p-3 bg-blue-50 rounded-md">
+      <div className={`mt-4 p-3 rounded-md ${
+        status.status === 'success' ? 'bg-green-50' :
+        status.status === 'detecting' ? 'bg-amber-50' :
+        status.status === 'error' ? 'bg-red-50' :
+        'bg-blue-50'
+      }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <div className={`w-2 h-2 rounded-full mr-2 ${
-              (locationType === 'current' && currentLocation) || (locationType === 'selected' && selectedLocation)
-                ? 'bg-green-500'
-                : 'bg-gray-400'
+              status.status === 'success' ? 'bg-green-500' :
+              status.status === 'detecting' ? 'bg-amber-500 animate-pulse' :
+              status.status === 'error' ? 'bg-red-500' :
+              'bg-gray-400'
             }`}></div>
-            <span className="text-sm font-medium text-blue-900">
-              {(locationType === 'current' && currentLocation) || (locationType === 'selected' && selectedLocation)
-                ? 'Location Ready'
-                : 'Location Required'
-              }
+            <span className={`text-sm font-medium ${status.color}`}>
+              {status.message}
             </span>
           </div>
           <span className="text-xs text-blue-700">
@@ -378,6 +449,11 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
         {apiError && (
           <div className="mt-2 text-xs text-red-600">
             Some features may be limited due to API configuration issues.
+          </div>
+        )}
+        {isDetectingLocation && (
+          <div className="mt-2 text-xs text-amber-600">
+            Live location detection is in progress for accurate emergency response.
           </div>
         )}
       </div>

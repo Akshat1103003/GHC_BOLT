@@ -26,6 +26,9 @@ interface AppContextType {
   isLoading: boolean;
   dataSource: 'supabase' | 'mock';
   isCreatingRoute: boolean;
+  isDetectingLocation: boolean;
+  locationError: string | null;
+  initialLocationSet: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -34,12 +37,96 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [emergencyActive, setEmergencyActive] = useState(false);
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
   const [currentRoute, setCurrentRoute] = useState<Route | null>(null);
-  const [ambulanceLocation, setAmbulanceLocation] = useState<[number, number]>([40.7128, -74.0060]);
+  const [ambulanceLocation, setAmbulanceLocation] = useState<[number, number]>([40.7128, -74.0060]); // Default fallback
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dataSource, setDataSource] = useState<'supabase' | 'mock'>('mock');
   const [isCreatingRoute, setIsCreatingRoute] = useState(false);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [initialLocationSet, setInitialLocationSet] = useState(false);
+
+  // Detect user's live location on app startup
+  useEffect(() => {
+    const detectLiveLocation = () => {
+      if (!navigator.geolocation) {
+        console.warn('⚠️ Geolocation is not supported by this browser');
+        setLocationError('Geolocation not supported');
+        setInitialLocationSet(true);
+        return;
+      }
+
+      setIsDetectingLocation(true);
+      setLocationError(null);
+
+      console.log('📍 Detecting user\'s live location...');
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const liveLocation: [number, number] = [
+            position.coords.latitude,
+            position.coords.longitude
+          ];
+          
+          console.log('✅ Live location detected:', liveLocation);
+          setAmbulanceLocation(liveLocation);
+          setIsDetectingLocation(false);
+          setLocationError(null);
+          setInitialLocationSet(true);
+
+          // Update in database if using Supabase
+          if (dataSource === 'supabase') {
+            updateAmbulanceLocationInDB(liveLocation);
+          }
+        },
+        (error) => {
+          console.warn('⚠️ Failed to get live location:', error.message);
+          
+          let errorMessage = 'Unable to detect your location';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Location access denied. Using default location.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information unavailable. Using default location.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Location request timed out. Using default location.';
+              break;
+          }
+          
+          setLocationError(errorMessage);
+          setIsDetectingLocation(false);
+          setInitialLocationSet(true);
+          
+          // Keep default location (New York) as fallback
+          console.log('📍 Using default location (New York) as fallback');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000, // 15 seconds timeout
+          maximumAge: 300000 // 5 minutes cache
+        }
+      );
+    };
+
+    // Detect location immediately on app start
+    detectLiveLocation();
+  }, []);
+
+  // Helper function to update ambulance location in database
+  const updateAmbulanceLocationInDB = async (location: [number, number]) => {
+    if (dataSource === 'supabase') {
+      try {
+        const { updateAmbulanceLocation: updateAmbulanceLocationDB } = await import('../services/supabaseService');
+        await updateAmbulanceLocationDB('550e8400-e29b-41d4-a716-446655440000', location[0], location[1]);
+        console.log('📍 Location updated in database:', location);
+      } catch (error) {
+        console.error('❌ Error updating ambulance location in database:', error);
+      }
+    }
+  };
 
   // Load initial data
   useEffect(() => {
@@ -62,10 +149,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const hospitalsData = await getHospitals();
             setHospitals(hospitalsData);
             
-            // Load ambulance location
-            const ambulanceData = await getAmbulance();
-            if (ambulanceData) {
-              setAmbulanceLocation([ambulanceData.latitude, ambulanceData.longitude]);
+            // Load ambulance location (but don't override live location if already detected)
+            if (!initialLocationSet) {
+              const ambulanceData = await getAmbulance();
+              if (ambulanceData) {
+                setAmbulanceLocation([ambulanceData.latitude, ambulanceData.longitude]);
+                console.log('📍 Loaded ambulance location from database:', [ambulanceData.latitude, ambulanceData.longitude]);
+              }
             }
             
             // Load notifications
@@ -77,7 +167,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             // Set up real-time subscriptions
             const ambulanceSubscription = subscribeToAmbulances((payload) => {
               if (payload.eventType === 'UPDATE' && payload.new) {
-                setAmbulanceLocation([payload.new.latitude, payload.new.longitude]);
+                // Only update if it's not the initial location detection
+                if (initialLocationSet) {
+                  setAmbulanceLocation([payload.new.latitude, payload.new.longitude]);
+                  console.log('📍 Real-time ambulance location update:', [payload.new.latitude, payload.new.longitude]);
+                }
               }
             });
 
@@ -133,7 +227,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
     
     loadInitialData();
-  }, []);
+  }, [initialLocationSet]);
 
   const toggleEmergency = () => {
     const newEmergencyState = !emergencyActive;
@@ -242,8 +336,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       console.log('🔄 AppContext: Resetting system...');
       
-      // Reset ambulance to original position
-      await updateAmbulanceLocation([40.7128, -74.0060]);
+      // Reset ambulance to live location if available, otherwise use default
+      const resetLocation: [number, number] = initialLocationSet ? ambulanceLocation : [40.7128, -74.0060];
+      await updateAmbulanceLocation(resetLocation);
       
       // Deactivate emergency mode
       setEmergencyActive(false);
@@ -275,6 +370,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     isLoading,
     dataSource,
     isCreatingRoute,
+    isDetectingLocation,
+    locationError,
+    initialLocationSet,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

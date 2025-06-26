@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
-import { Ambulance, Building2, MapPin, Navigation, Globe, Search, Route as RouteIcon, Loader2 } from 'lucide-react';
+import { Ambulance, Building2, MapPin, Navigation, Globe, Search, Route as RouteIcon, Loader2, Crosshair, AlertTriangle } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import RouteRenderer from './RouteRenderer';
 import { calculateDistance } from '../../utils/routeUtils';
@@ -17,7 +17,10 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     selectedHospital, 
     currentRoute,
     emergencyActive,
-    isCreatingRoute
+    isCreatingRoute,
+    isDetectingLocation,
+    locationError,
+    initialLocationSet
   } = useAppContext();
 
   // State management
@@ -115,7 +118,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
       return 'Singapore';
     }
     
-    return 'Global Location';
+    return 'Your Location';
   };
 
   // Create enhanced, reliable marker icons with better visibility
@@ -131,6 +134,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
     if (type === 'ambulance') {
       size = 52; // Slightly larger for better visibility
       const fillColor = emergencyActive ? '#DC2626' : '#EF4444';
+      const pulseColor = isDetectingLocation ? '#FBBF24' : fillColor;
       svgContent = `
         <circle cx="26" cy="26" r="24" fill="white" stroke="${fillColor}" stroke-width="4"/>
         <rect x="10" y="18" width="32" height="16" rx="2" fill="${fillColor}"/>
@@ -140,6 +144,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
         <rect x="24" y="14" width="4" height="12" fill="white"/>
         <rect x="18" y="18" width="16" height="4" fill="white"/>
         ${emergencyActive ? '<circle cx="26" cy="8" r="4" fill="#FBBF24"><animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/></circle>' : ''}
+        ${isDetectingLocation ? '<circle cx="26" cy="8" r="6" fill="#FBBF24" opacity="0.7"><animate attributeName="r" values="4;8;4" dur="2s" repeatCount="indefinite"/></circle>' : ''}
       `;
     } else if (type === 'hospital') {
       size = 48; // Larger for better visibility
@@ -183,7 +188,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
       scaledSize: new window.google.maps.Size(size, size),
       anchor: new window.google.maps.Point(size / 2, size / 2)
     };
-  }, [emergencyActive]);
+  }, [emergencyActive, isDetectingLocation]);
 
   // Handle map load with improved error handling
   const handleMapLoad = useCallback((map: google.maps.Map) => {
@@ -264,7 +269,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
 
   // Enhanced map view updates with better bounds calculation
   useEffect(() => {
-    if (mapInstance) {
+    if (mapInstance && initialLocationSet) {
       if (searchLocation) {
         mapInstance.setCenter({ lat: searchLocation[0], lng: searchLocation[1] });
         mapInstance.setZoom(12);
@@ -286,7 +291,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
         mapInstance.setZoom(11);
       }
     }
-  }, [ambulanceLocation, mapInstance, emergencyActive, selectedHospital, searchLocation]);
+  }, [ambulanceLocation, mapInstance, emergencyActive, selectedHospital, searchLocation, initialLocationSet]);
 
   // Calculate optimal initial zoom based on context
   const getInitialZoom = () => {
@@ -323,7 +328,29 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center space-x-2 text-sm text-gray-700">
             <Globe size={18} className="text-blue-600" />
-            <span className="font-medium">Global Emergency Response System</span>
+            <span className="font-medium">Live Location Emergency Response System</span>
+            
+            {/* Location detection status */}
+            {isDetectingLocation && (
+              <span className="text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full text-xs flex items-center">
+                <Crosshair size={12} className="mr-1 animate-spin" />
+                Detecting Location...
+              </span>
+            )}
+            
+            {locationError && (
+              <span className="text-red-600 font-medium bg-red-50 px-2 py-1 rounded-full text-xs flex items-center">
+                <AlertTriangle size={12} className="mr-1" />
+                Using Default Location
+              </span>
+            )}
+            
+            {initialLocationSet && !isDetectingLocation && !locationError && (
+              <span className="text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full text-xs">
+                📍 Live Location Active
+              </span>
+            )}
+            
             {searchLocation && (
               <span className="text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full text-xs">
                 • Search Active
@@ -366,7 +393,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
             <div className="w-4 h-4 bg-red-600 rounded-full mr-1 flex items-center justify-center">
               <Ambulance size={8} className="text-white" />
             </div>
-            <span>Ambulance</span>
+            <span>Ambulance {isDetectingLocation ? '(Detecting...)' : '(Live Location)'}</span>
           </div>
           <div className="flex items-center">
             <div className="w-4 h-4 bg-blue-600 rounded-full mr-1 flex items-center justify-center">
@@ -500,6 +527,15 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                 <div className="text-sm text-gray-600 space-y-1 mb-3">
                   <p>📍 {ambulanceLocation[0].toFixed(4)}, {ambulanceLocation[1].toFixed(4)}</p>
                   <p>🌍 {getLocationName(ambulanceLocation)}</p>
+                  {isDetectingLocation && (
+                    <p className="text-amber-600 font-medium animate-pulse">🔍 Detecting live location...</p>
+                  )}
+                  {locationError && (
+                    <p className="text-red-600 text-xs">⚠️ {locationError}</p>
+                  )}
+                  {initialLocationSet && !isDetectingLocation && !locationError && (
+                    <p className="text-green-600 font-medium">✅ Live location active</p>
+                  )}
                 </div>
                 
                 {emergencyActive && (
@@ -634,6 +670,29 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
             </div>
           </div>
         )}
+
+        {/* Location detection overlay */}
+        {isDetectingLocation && (
+          <div className="absolute top-4 left-4 bg-amber-100 border border-amber-300 rounded-lg p-3 shadow-lg">
+            <div className="flex items-center text-amber-800">
+              <Crosshair className="animate-spin h-5 w-5 mr-2" />
+              <span className="text-sm font-medium">Detecting your live location...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Location error overlay */}
+        {locationError && (
+          <div className="absolute top-4 left-4 bg-red-100 border border-red-300 rounded-lg p-3 shadow-lg">
+            <div className="flex items-center text-red-800">
+              <AlertTriangle className="h-5 w-5 mr-2" />
+              <div>
+                <p className="text-sm font-medium">Location Detection Failed</p>
+                <p className="text-xs">{locationError}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Enhanced Status Panel */}
@@ -641,20 +700,41 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex-1">
             <p className="font-semibold text-gray-800 flex items-center">
-              🌍 Global Emergency Response System
+              🌍 Live Location Emergency Response System
               {emergencyActive && <span className="ml-2 text-red-600 animate-pulse">• EMERGENCY MODE</span>}
+              {isDetectingLocation && <span className="ml-2 text-amber-600 animate-pulse">• DETECTING LOCATION</span>}
             </p>
             <p className="text-sm text-gray-600 mt-1">
-              {searchLocation 
+              {isDetectingLocation 
+                ? 'Detecting your live location for accurate emergency response...'
+                : locationError
+                ? 'Using default location due to location detection failure'
+                : searchLocation 
                 ? 'Showing hospitals near your searched location within 50km radius'
                 : selectedHospital
                 ? `${emergencyActive ? 'Emergency route active' : 'Route planned'} to ${selectedHospital.name}`
-                : 'Featuring hospitals from major cities worldwide - Select a hospital to create route'
+                : 'Live location active - Select a hospital to create route'
               }
             </p>
             
             {/* Status indicators */}
             <div className="flex flex-wrap gap-2 mt-2">
+              {isDetectingLocation && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 animate-pulse">
+                  <Crosshair size={12} className="mr-1 animate-spin" />
+                  Detecting location...
+                </span>
+              )}
+              {initialLocationSet && !isDetectingLocation && !locationError && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  📍 Live location active
+                </span>
+              )}
+              {locationError && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                  ⚠️ Default location
+                </span>
+              )}
               {isCreatingRoute && (
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 animate-pulse">
                   <Loader2 size={12} className="mr-1 animate-spin" />

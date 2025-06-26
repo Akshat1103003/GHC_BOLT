@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, User, MapPin, Guitar as Hospital } from 'lucide-react';
+import { Clock, User, MapPin, Guitar as Hospital, Crosshair, AlertTriangle } from 'lucide-react';
 import MapView from '../components/map/MapView';
 import EmergencyToggle from '../components/common/EmergencyToggle';
 import HospitalSelect from '../components/common/HospitalSelect';
@@ -22,6 +22,9 @@ const DriverDashboard: React.FC = () => {
     notifications,
     markNotificationAsRead,
     isLoading,
+    isDetectingLocation,
+    locationError,
+    initialLocationSet,
   } = useAppContext();
 
   const [patientInfo, setPatientInfo] = useState({
@@ -64,6 +67,13 @@ const DriverDashboard: React.FC = () => {
     }
   }, [currentRoute, selectedHospital, emergencyActive]);
 
+  // Sync emergency location with ambulance location
+  useEffect(() => {
+    if (ambulanceLocation && initialLocationSet) {
+      setEmergencyLocation(ambulanceLocation);
+    }
+  }, [ambulanceLocation, initialLocationSet]);
+
   // Handle emergency location change
   const handleEmergencyLocationChange = (
     location: [number, number], 
@@ -102,6 +112,21 @@ const DriverDashboard: React.FC = () => {
     }
   };
 
+  // Get location status for display
+  const getLocationStatus = () => {
+    if (isDetectingLocation) {
+      return { status: 'warning', message: 'Detecting live location...', icon: <Crosshair className="animate-spin" size={20} /> };
+    } else if (locationError) {
+      return { status: 'error', message: 'Location detection failed', icon: <AlertTriangle size={20} /> };
+    } else if (initialLocationSet) {
+      return { status: 'success', message: 'Live location active', icon: <MapPin size={20} /> };
+    } else {
+      return { status: 'warning', message: 'Location required', icon: <MapPin size={20} /> };
+    }
+  };
+
+  const locationStatus = getLocationStatus();
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-6">
@@ -117,8 +142,20 @@ const DriverDashboard: React.FC = () => {
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Ambulance Driver Dashboard</h1>
-            <p className="text-gray-600">Manage emergency routes and monitor hospital coordination</p>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+              Ambulance Driver Dashboard
+              {isDetectingLocation && (
+                <Crosshair className="ml-2 animate-spin text-amber-500" size={24} />
+              )}
+            </h1>
+            <p className="text-gray-600">
+              {isDetectingLocation 
+                ? 'Detecting your live location for accurate emergency response...'
+                : locationError
+                ? 'Using default location - Live location detection failed'
+                : 'Manage emergency routes and monitor hospital coordination'
+              }
+            </p>
           </div>
           
           {/* Reset Button in Header */}
@@ -126,6 +163,36 @@ const DriverDashboard: React.FC = () => {
             <ResetButton />
           </div>
         </div>
+
+        {/* Live Location Detection Banner */}
+        {isDetectingLocation && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center">
+              <Crosshair className="animate-spin h-6 w-6 text-amber-600 mr-3" />
+              <div>
+                <h3 className="text-amber-800 font-medium">Detecting Your Live Location</h3>
+                <p className="text-amber-700 text-sm">
+                  Please allow location access for accurate emergency response. This ensures the ambulance position is correctly tracked.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Location Error Banner */}
+        {locationError && !isDetectingLocation && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center">
+              <AlertTriangle className="h-6 w-6 text-red-600 mr-3" />
+              <div>
+                <h3 className="text-red-800 font-medium">Location Detection Failed</h3>
+                <p className="text-red-700 text-sm">
+                  {locationError} Using default location (New York). You can manually set a location using the location selector below.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Responsive Grid Layout */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
@@ -171,11 +238,19 @@ const DriverDashboard: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
                 <MapPin className="mr-2" size={18} />
                 Ambulance Location
+                {isDetectingLocation && (
+                  <Crosshair className="ml-2 animate-spin text-amber-500" size={16} />
+                )}
               </h2>
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Type:</span>
-                  <span className="font-medium capitalize">{emergencyLocationType} Location</span>
+                  <span className="font-medium capitalize flex items-center">
+                    {emergencyLocationType} Location
+                    {isDetectingLocation && (
+                      <span className="ml-2 text-amber-600 text-xs animate-pulse">(Detecting...)</span>
+                    )}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Location:</span>
@@ -193,6 +268,27 @@ const DriverDashboard: React.FC = () => {
                   <span className="text-gray-600">Last Updated:</span>
                   <span className="font-medium">{new Date().toLocaleTimeString()}</span>
                 </div>
+                
+                {/* Location status indicator */}
+                <div className={`mt-3 p-2 rounded-md ${
+                  locationStatus.status === 'success' ? 'bg-green-50 border border-green-200' :
+                  locationStatus.status === 'warning' ? 'bg-amber-50 border border-amber-200' :
+                  'bg-red-50 border border-red-200'
+                }`}>
+                  <div className="flex items-center">
+                    {locationStatus.icon}
+                    <span className={`ml-2 text-sm font-medium ${
+                      locationStatus.status === 'success' ? 'text-green-800' :
+                      locationStatus.status === 'warning' ? 'text-amber-800' :
+                      'text-red-800'
+                    }`}>
+                      {locationStatus.message}
+                    </span>
+                  </div>
+                  {locationError && (
+                    <p className="text-xs text-red-600 mt-1">{locationError}</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -203,6 +299,20 @@ const DriverDashboard: React.FC = () => {
               {/* Status cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <StatusCard
+                  title="Location Status"
+                  status={locationStatus.status as any}
+                  message={locationStatus.message}
+                  details={isDetectingLocation 
+                    ? 'GPS location detection in progress...' 
+                    : locationError 
+                    ? 'Using default location as fallback'
+                    : 'Live GPS location is active'
+                  }
+                  icon={locationStatus.icon}
+                  progress={isDetectingLocation ? 50 : initialLocationSet ? 100 : 0}
+                />
+
+                <StatusCard
                   title="Route Status"
                   status={routeStatus.status as any}
                   message={routeStatus.message}
@@ -210,7 +320,9 @@ const DriverDashboard: React.FC = () => {
                   icon={<Clock size={20} />}
                   progress={currentRoute ? (emergencyActive ? 75 : 50) : 0}
                 />
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <StatusCard
                   title="Hospital Status"
                   status={selectedHospital?.emergencyReady ? 'success' : 'warning'}
