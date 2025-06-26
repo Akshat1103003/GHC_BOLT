@@ -1,17 +1,18 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
-import { Ambulance, Building2, MapPin, Navigation, Globe, Search, Route as RouteIcon, Loader2, Crosshair, AlertTriangle } from 'lucide-react';
+import { Ambulance, Building2, MapPin, Navigation, Globe, Search, Route as RouteIcon, Loader2, Crosshair, AlertTriangle, Shield } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import RouteRenderer from './RouteRenderer';
 import { calculateDistance } from '../../utils/routeUtils';
-import { RouteInfo } from '../../types';
+import { RouteInfo, CheckpointRoute, EmergencyCheckpoint } from '../../types';
 
 interface MapViewProps {
   searchLocation?: [number, number] | null;
+  checkpointRoute?: CheckpointRoute | null;
   className?: string;
 }
 
-const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => {
+const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, className = '' }) => {
   const { 
     ambulanceLocation, 
     selectedHospital, 
@@ -122,7 +123,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
   };
 
   // Create enhanced, reliable marker icons with better visibility
-  const createMarkerIcon = useCallback((type: string) => {
+  const createMarkerIcon = useCallback((type: string, checkpointCode?: string) => {
     // Check if Google Maps API is loaded before using constructors
     if (!window.google?.maps?.Size || !window.google?.maps?.Point) {
       return null; // Return null to use default marker
@@ -167,6 +168,16 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
         <circle cx="22" cy="22" r="14" fill="${fillColor}"/>
         <circle cx="18" cy="18" r="7" fill="none" stroke="white" stroke-width="3"/>
         <path d="23 23 29 29" stroke="white" stroke-width="3" stroke-linecap="round"/>
+      `;
+    } else if (type === 'checkpoint') {
+      size = 36;
+      const fillColor = '#F59E0B';
+      const textColor = '#FFFFFF';
+      const code = checkpointCode || 'CP';
+      svgContent = `
+        <circle cx="18" cy="18" r="16" fill="white" stroke="${fillColor}" stroke-width="3"/>
+        <circle cx="18" cy="18" r="12" fill="${fillColor}"/>
+        <text x="18" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="${textColor}">${code}</text>
       `;
     }
 
@@ -279,6 +290,13 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
         bounds.extend({ lat: ambulanceLocation[0], lng: ambulanceLocation[1] });
         bounds.extend({ lat: selectedHospital.coordinates[0], lng: selectedHospital.coordinates[1] });
         
+        // Include checkpoints in bounds if available
+        if (checkpointRoute && checkpointRoute.checkpoints.length > 0) {
+          checkpointRoute.checkpoints.forEach(checkpoint => {
+            bounds.extend({ lat: checkpoint.coordinates[0], lng: checkpoint.coordinates[1] });
+          });
+        }
+        
         // Calculate distance to determine appropriate padding
         const distance = calculateDistance(ambulanceLocation, selectedHospital.coordinates);
         const padding = distance > 50 ? 150 : 100;
@@ -291,7 +309,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
         mapInstance.setZoom(11);
       }
     }
-  }, [ambulanceLocation, mapInstance, emergencyActive, selectedHospital, searchLocation, initialLocationSet]);
+  }, [ambulanceLocation, mapInstance, emergencyActive, selectedHospital, searchLocation, initialLocationSet, checkpointRoute]);
 
   // Calculate optimal initial zoom based on context
   const getInitialZoom = () => {
@@ -367,6 +385,12 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                 {routeStatus.message}
               </span>
             )}
+            {checkpointRoute && (
+              <span className="text-orange-600 font-medium bg-orange-50 px-2 py-1 rounded-full text-xs flex items-center">
+                <Shield size={12} className="mr-1" />
+                {checkpointRoute.checkpoints.length} Checkpoints
+              </span>
+            )}
             {emergencyActive && (
               <span className="text-red-600 font-bold animate-pulse bg-red-50 px-2 py-1 rounded-full text-xs">
                 🚨 EMERGENCY
@@ -401,6 +425,14 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
             </div>
             <span>Hospital</span>
           </div>
+          {checkpointRoute && checkpointRoute.checkpoints.length > 0 && (
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-orange-500 rounded-full mr-1 flex items-center justify-center">
+                <Shield size={6} className="text-white" />
+              </div>
+              <span>Emergency Checkpoints ({checkpointRoute.checkpoints.length})</span>
+            </div>
+          )}
           {searchLocation && (
             <div className="flex items-center">
               <div className="w-4 h-4 bg-green-500 rounded-full mr-1 flex items-center justify-center">
@@ -503,6 +535,85 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
             </>
           )}
 
+          {/* Emergency Checkpoint markers */}
+          {checkpointRoute && checkpointRoute.checkpoints.map((checkpoint: EmergencyCheckpoint) => (
+            <React.Fragment key={checkpoint.id}>
+              <Marker
+                position={{ lat: checkpoint.coordinates[0], lng: checkpoint.coordinates[1] }}
+                icon={createMarkerIcon('checkpoint', checkpoint.code)}
+                onClick={() => setSelectedMarker(`checkpoint-${checkpoint.id}`)}
+                zIndex={800}
+              />
+              
+              {selectedMarker === `checkpoint-${checkpoint.id}` && (
+                <InfoWindow
+                  position={{ lat: checkpoint.coordinates[0], lng: checkpoint.coordinates[1] }}
+                  onCloseClick={() => setSelectedMarker(null)}
+                  options={{
+                    pixelOffset: window.google?.maps?.Size ? new window.google.maps.Size(0, -10) : undefined
+                  }}
+                >
+                  <div className="p-3 max-w-sm">
+                    <div className="flex items-center mb-3">
+                      <Shield size={24} className="text-orange-600" />
+                      <div className="ml-2">
+                        <p className="font-bold text-orange-600 text-lg">Checkpoint {checkpoint.code}</p>
+                        <p className="text-xs text-gray-500">{checkpoint.distanceFromStart.toFixed(1)}km from start</p>
+                      </div>
+                    </div>
+                    
+                    <p className="text-sm text-gray-600 mb-3">📍 {checkpoint.landmark}</p>
+                    <p className="text-xs text-gray-500 mb-3">{checkpoint.streetIntersection}</p>
+                    
+                    <div className="mb-3">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        checkpoint.status === 'operational' ? 'bg-green-100 text-green-800' :
+                        checkpoint.status === 'maintenance' ? 'bg-amber-100 text-amber-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {checkpoint.status === 'operational' ? '✅ Operational' :
+                         checkpoint.status === 'maintenance' ? '🔧 Maintenance' :
+                         '❌ Out of Service'}
+                      </span>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <p className="text-xs text-gray-500 mb-1">Available Facilities:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {checkpoint.facilities.firstAid && (
+                          <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">First Aid</span>
+                        )}
+                        {checkpoint.facilities.defibrillator && (
+                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">AED</span>
+                        )}
+                        {checkpoint.facilities.oxygenSupply && (
+                          <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Oxygen</span>
+                        )}
+                        {checkpoint.facilities.emergencyPhone && (
+                          <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">Emergency Phone</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className={`p-3 rounded-lg ${emergencyActive ? 'bg-red-50 border border-red-200' : 'bg-orange-50 border border-orange-200'}`}>
+                      <p className={`text-xs font-medium mb-1 ${emergencyActive ? 'text-red-800' : 'text-orange-800'}`}>
+                        🚨 {emergencyActive ? 'Emergency Checkpoint ACTIVE' : 'Emergency Checkpoint Ready'}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Safe stopping area with {checkpoint.safeStoppingArea.capacity} vehicle capacity
+                      </p>
+                      {emergencyActive && (
+                        <p className="text-xs text-red-600 font-medium mt-1">
+                          ⚡ All facilities on standby for immediate assistance
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </InfoWindow>
+              )}
+            </React.Fragment>
+          ))}
+
           {/* Enhanced Ambulance marker */}
           <Marker
             position={{ lat: ambulanceLocation[0], lng: ambulanceLocation[1] }}
@@ -569,6 +680,17 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                         ⚠️ Route pending...
                       </div>
                     )}
+                  </div>
+                )}
+                
+                {checkpointRoute && (
+                  <div className="mt-3 bg-orange-50 border border-orange-200 rounded p-2">
+                    <p className="text-orange-600 text-xs font-medium">
+                      🛡️ {checkpointRoute.checkpoints.length} Emergency Checkpoints Active
+                    </p>
+                    <p className="text-orange-500 text-xs">
+                      Covering {checkpointRoute.totalDistance.toFixed(1)}km route
+                    </p>
                   </div>
                 )}
               </div>
@@ -653,6 +775,11 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                           ⚠️ Route pending...
                         </p>
                       )}
+                      {checkpointRoute && (
+                        <p className="text-xs text-orange-600 mt-1">
+                          🛡️ {checkpointRoute.checkpoints.length} emergency checkpoints deployed
+                        </p>
+                      )}
                     </div>
                   </div>
                 </InfoWindow>
@@ -715,6 +842,11 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                 ? `${emergencyActive ? 'Emergency route active' : 'Route planned'} to ${selectedHospital.name}`
                 : 'Live location active - Select a hospital to create route'
               }
+              {checkpointRoute && (
+                <span className="ml-2 text-orange-600 font-medium">
+                  • {checkpointRoute.checkpoints.length} emergency checkpoints deployed
+                </span>
+              )}
             </p>
             
             {/* Status indicators */}
@@ -746,6 +878,11 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
                   ✅ Route path visible
                 </span>
               )}
+              {checkpointRoute && checkpointRoute.checkpoints.length > 0 && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                  🛡️ {checkpointRoute.checkpoints.length} checkpoints active
+                </span>
+              )}
               {searchLocation && (
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                   🔍 Search location active
@@ -770,6 +907,11 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, className = '' }) => 
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 Real-time route to {selectedHospital.name}
+                {checkpointRoute && (
+                  <span className="block text-orange-600">
+                    {checkpointRoute.checkpoints.length} checkpoints secured
+                  </span>
+                )}
               </p>
             </div>
           )}

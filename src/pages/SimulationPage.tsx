@@ -19,6 +19,7 @@ const SimulationPage: React.FC = () => {
     currentRoute,
     hospitals,
     isLoading,
+    checkpointRoute,
   } = useAppContext();
 
   const [isSimulationRunning, setIsSimulationRunning] = useState(false);
@@ -310,6 +311,7 @@ const SimulationPage: React.FC = () => {
             <div className="bg-white rounded-lg shadow-lg overflow-hidden">
               <MapView 
                 searchLocation={searchLocationForMap}
+                checkpointRoute={checkpointRoute}
                 className="w-full"
               />
             </div>

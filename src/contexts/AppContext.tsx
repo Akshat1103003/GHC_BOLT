@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Hospital, Route, Notification } from '../types';
 import { mockHospitals } from '../utils/mockData';
+import { CheckpointRoute } from '../types';
 // Remove the route creation import
 // import { createRoute } from '../utils/routeUtils';
 
@@ -30,6 +31,7 @@ interface AppContextType {
   isDetectingLocation: boolean;
   locationError: string | null;
   initialLocationSet: boolean;
+  checkpointRoute: CheckpointRoute | null;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -47,6 +49,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [initialLocationSet, setInitialLocationSet] = useState(false);
+  const [checkpointRoute, setCheckpointRoute] = useState<CheckpointRoute | null>(null);
 
   // Detect user's live location on app startup
   useEffect(() => {
@@ -248,6 +251,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Clear route when hospital is deselected
       setCurrentRoute(null);
       setIsCreatingRoute(false);
+      setCheckpointRoute(null);
       console.log('🗺️ AppContext: Route cleared');
     }
   };
@@ -303,7 +307,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log('🔄 AppContext: Resetting system...');
       
       // Reset ambulance to live location if available, otherwise use default
-      const resetLocation: [number, number] = initialLocationSet ? ambulanceLocation : [40.7128, -74.0060];
+      const resetLocation: [number, number] = initialLocationSet ? ambulanceLocation : [40.7128, -74.006];
       await updateAmbulanceLocation(resetLocation);
       
       // Deactivate emergency mode
@@ -313,6 +317,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setSelectedHospital(null);
       setCurrentRoute(null);
       setIsCreatingRoute(false);
+      setCheckpointRoute(null);
       
       console.log('✅ System reset completed');
     } catch (error) {
@@ -339,6 +344,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     isDetectingLocation,
     locationError,
     initialLocationSet,
+    checkpointRoute,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

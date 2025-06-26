@@ -151,8 +151,16 @@ const CheckpointDisplay: React.FC<CheckpointDisplayProps> = ({
           
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => setShowValidation(!showValidation)}
-              className="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded-full hover:bg-blue-200"
+              onClick={() => {
+                console.log('🔍 Validation button clicked. Current state:', showValidation);
+                setShowValidation(!showValidation);
+                console.log('🔍 Validation state toggled to:', !showValidation);
+              }}
+              className={`text-xs px-3 py-1 rounded-full hover:opacity-80 transition-opacity ${
+                showValidation 
+                  ? 'bg-blue-200 text-blue-900 border border-blue-300' 
+                  : 'bg-blue-100 text-blue-800 border border-blue-200'
+              }`}
             >
               {showValidation ? 'Hide' : 'Show'} Validation
             </button>
@@ -186,6 +194,17 @@ const CheckpointDisplay: React.FC<CheckpointDisplayProps> = ({
             <div className="font-bold text-orange-600">{statistics.operational}/{statistics.total}</div>
           </div>
         </div>
+
+        {/* Validation Status Indicator */}
+        {showValidation && (
+          <div className="mb-3 p-2 bg-blue-100 border border-blue-200 rounded-lg">
+            <div className="flex items-center text-sm text-blue-800">
+              <AlertTriangle size={14} className="mr-2" />
+              <span className="font-medium">Validation Mode Active</span>
+              <span className="ml-2 text-xs">- Issues will be displayed for each checkpoint</span>
+            </div>
+          </div>
+        )}
 
         {/* Nearest Checkpoint Alert */}
         {nearestCheckpoint && emergencyActive && (
@@ -291,15 +310,28 @@ const CheckpointDisplay: React.FC<CheckpointDisplayProps> = ({
                     </div>
 
                     {/* Validation Issues */}
-                    {showValidation && validation && !validation.isValid && (
+                    {showValidation && validation && (
                       <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
                         <div className="flex items-center mb-1">
                           <AlertTriangle size={14} className="text-amber-600 mr-1" />
-                          <span className="text-xs font-medium text-amber-800">Issues Found</span>
+                          <span className="text-xs font-medium text-amber-800">
+                            {validation.isValid ? 'Checkpoint Valid' : 'Issues Found'}
+                          </span>
                         </div>
-                        {validation.issues.map((issue, idx) => (
+                        {!validation.isValid && validation.issues.map((issue, idx) => (
                           <p key={idx} className="text-xs text-amber-700">• {issue}</p>
                         ))}
+                        {validation.isValid && (
+                          <p className="text-xs text-green-700">✅ All systems operational</p>
+                        )}
+                        {validation.recommendations.length > 0 && (
+                          <div className="mt-1">
+                            <p className="text-xs font-medium text-blue-800">Recommendations:</p>
+                            {validation.recommendations.map((rec, idx) => (
+                              <p key={idx} className="text-xs text-blue-700">• {rec}</p>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -416,6 +448,12 @@ const CheckpointDisplay: React.FC<CheckpointDisplayProps> = ({
         {emergencyActive && (
           <div className="mt-2 text-xs text-red-600 font-medium">
             🚨 Emergency Mode Active - All checkpoints are on standby for immediate assistance
+          </div>
+        )}
+        
+        {showValidation && (
+          <div className="mt-2 text-xs text-blue-600 font-medium">
+            🔍 Validation Mode: Displaying checkpoint status and recommendations
           </div>
         )}
       </div>

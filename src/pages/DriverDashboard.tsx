@@ -28,6 +28,7 @@ const DriverDashboard: React.FC = () => {
     isDetectingLocation,
     locationError,
     initialLocationSet,
+    checkpointRoute,
   } = useAppContext();
 
   const [patientInfo, setPatientInfo] = useState({
@@ -342,6 +343,7 @@ const DriverDashboard: React.FC = () => {
               <div className="bg-white rounded-lg shadow-lg overflow-hidden">
                 <MapView 
                   searchLocation={searchLocationForMap}
+                  checkpointRoute={checkpointRoute}
                   className="w-full"
                 />
               </div>
