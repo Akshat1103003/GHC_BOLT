@@ -16,10 +16,12 @@ function App() {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const [apiError, setApiError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showSetupInstructions, setShowSetupInstructions] = useState(false);
 
   useEffect(() => {
     // Check if API key exists and is not placeholder
     if (!apiKey || apiKey === 'your_google_maps_api_key_here') {
+      setShowSetupInstructions(true);
       setIsLoading(false);
       return;
     }
@@ -27,6 +29,7 @@ function App() {
     // Simple validation - just check if key exists and looks valid
     if (apiKey.length < 20) {
       setApiError('Invalid API key format. Please check your Google Maps API key.');
+      setShowSetupInstructions(true);
       setIsLoading(false);
       return;
     }
@@ -37,7 +40,8 @@ function App() {
 
   const handleGoogleMapsError = (error: any) => {
     console.error('Google Maps API Provider Error:', error);
-    setApiError('Google Maps API failed to initialize. Please check your API key and enabled APIs.');
+    setApiError('Google Maps API failed to initialize. This usually means the API key is invalid or required APIs are not enabled.');
+    setShowSetupInstructions(true);
   };
 
   if (isLoading) {
@@ -51,7 +55,7 @@ function App() {
     );
   }
 
-  if (!apiKey || apiKey === 'your_google_maps_api_key_here' || apiError) {
+  if (showSetupInstructions) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-2xl text-center">
@@ -63,6 +67,9 @@ function App() {
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
               <h2 className="text-lg font-semibold text-red-900 mb-2">Error Details</h2>
               <p className="text-red-800 text-sm">{apiError}</p>
+              <p className="text-red-700 text-xs mt-2">
+                Current API key: {apiKey ? `${apiKey.substring(0, 10)}...` : 'Not set'}
+              </p>
             </div>
           )}
           
@@ -224,15 +231,28 @@ function App() {
               The Google Maps API works perfectly with local development environments.
             </p>
           </div>
+
+          <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors"
+            >
+              Reload Page After Setup
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
+  // Only render the APIProvider if we have a valid API key and no setup instructions are needed
   return (
     <APIProvider 
       apiKey={apiKey}
-      onLoad={() => console.log('Google Maps API loaded successfully')}
+      onLoad={() => {
+        console.log('Google Maps API loaded successfully');
+        setApiError(null);
+      }}
       onError={handleGoogleMapsError}
     >
       <AppProvider>
