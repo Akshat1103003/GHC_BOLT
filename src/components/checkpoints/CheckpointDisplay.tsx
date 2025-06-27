@@ -50,11 +50,23 @@ const CheckpointDisplay: React.FC<CheckpointDisplayProps> = ({
   // Generate checkpoints when hospital is selected
   useEffect(() => {
     if (selectedHospital && initialLocationSet) {
+      console.log('🚨 Generating checkpoints for hospital:', selectedHospital.name);
+      console.log('📍 From:', ambulanceLocation, 'To:', selectedHospital.coordinates);
+      
       const route = generateEmergencyCheckpoints(
         ambulanceLocation,
         selectedHospital.coordinates,
         selectedHospital
       );
+      
+      console.log('✅ Generated checkpoint route:', route);
+      console.log('🛡️ Number of checkpoints:', route.checkpoints.length);
+      console.log('📋 Checkpoint details:', route.checkpoints.map(cp => ({
+        code: cp.code,
+        coordinates: cp.coordinates,
+        distance: cp.distanceFromStart
+      })));
+      
       setCheckpointRoute(route);
       
       // Find nearest checkpoint to current location
@@ -63,6 +75,7 @@ const CheckpointDisplay: React.FC<CheckpointDisplayProps> = ({
       
       console.log(`🚨 Generated emergency checkpoint route with ${route.checkpoints.length} checkpoints using geodesic interpolation`);
     } else {
+      console.log('🧹 Clearing checkpoints - no hospital selected or location not set');
       setCheckpointRoute(null);
       setNearestCheckpoint(null);
     }
