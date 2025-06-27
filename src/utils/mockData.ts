@@ -2,6 +2,17 @@ import { Hospital } from '../types';
 
 // Global hospitals from various cities and countries with actual coordinates
 export const mockHospitals: Hospital[] = [
+  // Bhopal, India - Adding Bansal Hospital for testing
+  {
+    id: 'bansal-bhopal',
+    name: 'Bansal Hospital',
+    address: 'C-sector, Shahpura, Bhopal, Madhya Pradesh 462016, India',
+    coordinates: [23.2692, 77.4023], // Bhopal coordinates
+    phone: '+91 755 277 7000',
+    specialties: ['Emergency', 'Cardiology', 'Neurology', 'Orthopedics'],
+    emergencyReady: true,
+  },
+  
   // New York City, USA
   {
     id: 'h1',

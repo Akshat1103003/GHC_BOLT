@@ -38,7 +38,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [emergencyActive, setEmergencyActive] = useState(false);
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
   const [currentRoute, setCurrentRoute] = useState<Route | null>(null);
-  const [ambulanceLocation, setAmbulanceLocation] = useState<[number, number]>([40.7128, -74.0060]); // Default fallback
+  // Set default location to Bhopal for testing the specific coordinates
+  const [ambulanceLocation, setAmbulanceLocation] = useState<[number, number]>([23.2692, 77.4023]); // Bhopal coordinates
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,13 +89,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           let errorMessage = 'Unable to detect your location';
           switch (error.code) {
             case error.PERMISSION_DENIED:
-              errorMessage = 'Location access denied. Using default location.';
+              errorMessage = 'Location access denied. Using Bhopal test location.';
               break;
             case error.POSITION_UNAVAILABLE:
-              errorMessage = 'Location information unavailable. Using default location.';
+              errorMessage = 'Location information unavailable. Using Bhopal test location.';
               break;
             case error.TIMEOUT:
-              errorMessage = 'Location request timed out. Using default location.';
+              errorMessage = 'Location request timed out. Using Bhopal test location.';
               break;
           }
           
@@ -102,8 +103,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setIsDetectingLocation(false);
           setInitialLocationSet(true);
           
-          // Keep default location (New York) as fallback
-          console.log('📍 Using default location (New York) as fallback');
+          // Keep Bhopal location for testing
+          console.log('📍 Using Bhopal test location for marker verification');
         },
         {
           enableHighAccuracy: true,
@@ -301,8 +302,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       console.log('🔄 AppContext: Resetting system...');
       
-      // Reset ambulance to live location if available, otherwise use default
-      const resetLocation: [number, number] = initialLocationSet ? ambulanceLocation : [40.7128, -74.006];
+      // Reset ambulance to live location if available, otherwise use Bhopal test location
+      const resetLocation: [number, number] = initialLocationSet ? ambulanceLocation : [23.2692, 77.4023];
       await updateAmbulanceLocation(resetLocation);
       
       // Deactivate emergency mode

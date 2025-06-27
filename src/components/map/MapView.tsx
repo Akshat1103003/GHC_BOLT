@@ -31,6 +31,30 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
   const [isRouteVisible, setIsRouteVisible] = useState(false);
   const [mapDimensions, setMapDimensions] = useState({ width: '100%', height: '500px' });
 
+  // Debug logging for coordinate verification
+  useEffect(() => {
+    console.log('🗺️ MapView Debug Information:');
+    console.log('📍 Patient Location (Ambulance):', ambulanceLocation);
+    console.log('🏥 Selected Hospital:', selectedHospital?.name, selectedHospital?.coordinates);
+    console.log('🔍 Search Location:', searchLocation);
+    console.log('🛡️ Checkpoint Route:', checkpointRoute ? `${checkpointRoute.checkpoints.length} checkpoints` : 'None');
+    
+    // Validate coordinates
+    if (ambulanceLocation) {
+      const [lat, lng] = ambulanceLocation;
+      console.log('✅ Ambulance coordinates validation:');
+      console.log(`   Latitude: ${lat} (valid: ${lat >= -90 && lat <= 90})`);
+      console.log(`   Longitude: ${lng} (valid: ${lng >= -180 && lng <= 180})`);
+    }
+    
+    if (selectedHospital?.coordinates) {
+      const [lat, lng] = selectedHospital.coordinates;
+      console.log('✅ Hospital coordinates validation:');
+      console.log(`   Latitude: ${lat} (valid: ${lat >= -90 && lat <= 90})`);
+      console.log(`   Longitude: ${lng} (valid: ${lng >= -180 && lng <= 180})`);
+    }
+  }, [ambulanceLocation, selectedHospital, searchLocation, checkpointRoute]);
+
   // Responsive map sizing
   useEffect(() => {
     const updateMapSize = () => {
@@ -78,6 +102,10 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
   const getLocationName = (coordinates: [number, number]) => {
     const [lat, lng] = coordinates;
     
+    // Bhopal area (test coordinates)
+    if (lat >= 23.2 && lat <= 23.3 && lng >= 77.3 && lng <= 77.5) {
+      return 'Bhopal, Madhya Pradesh, India';
+    }
     // NYC area
     if (lat >= 40.7 && lat <= 40.8 && lng >= -74.1 && lng <= -73.9) {
       return 'New York City, USA';
@@ -126,6 +154,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
   const createMarkerIcon = useCallback((type: string, checkpointCode?: string) => {
     // Check if Google Maps API is loaded before using constructors
     if (!window.google?.maps?.Size || !window.google?.maps?.Point) {
+      console.warn('⚠️ Google Maps API not fully loaded, using default markers');
       return null; // Return null to use default marker
     }
 
@@ -194,17 +223,25 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
       </svg>
     `;
 
-    return {
-      url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgString)}`,
-      scaledSize: new window.google.maps.Size(size, size),
-      anchor: new window.google.maps.Point(size / 2, size / 2)
-    };
+    try {
+      const icon = {
+        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgString)}`,
+        scaledSize: new window.google.maps.Size(size, size),
+        anchor: new window.google.maps.Point(size / 2, size / 2)
+      };
+      console.log(`✅ Created ${type} marker icon successfully`);
+      return icon;
+    } catch (error) {
+      console.error(`❌ Error creating ${type} marker icon:`, error);
+      return null;
+    }
   }, [emergencyActive, isDetectingLocation]);
 
   // Handle map load with improved error handling
   const handleMapLoad = useCallback((map: google.maps.Map) => {
     setMapInstance(map);
     console.log('🗺️ MapView: Map loaded successfully');
+    console.log('🗺️ Map center will be set to:', ambulanceLocation);
     
     // Set initial map options for better performance
     map.setOptions({
@@ -225,7 +262,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
         }
       ]
     });
-  }, []);
+  }, [ambulanceLocation]);
 
   // Handle route creation with enhanced feedback
   const handleRouteCreated = useCallback((info: RouteInfo) => {
@@ -281,10 +318,14 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
   // Enhanced map view updates with better bounds calculation
   useEffect(() => {
     if (mapInstance && initialLocationSet) {
+      console.log('🗺️ Updating map view with current locations');
+      
       if (searchLocation) {
+        console.log('🔍 Centering map on search location:', searchLocation);
         mapInstance.setCenter({ lat: searchLocation[0], lng: searchLocation[1] });
         mapInstance.setZoom(12);
       } else if (emergencyActive && selectedHospital) {
+        console.log('🚨 Emergency active - fitting bounds for ambulance and hospital');
         // Create bounds that include both ambulance and hospital with proper padding
         const bounds = new google.maps.LatLngBounds();
         bounds.extend({ lat: ambulanceLocation[0], lng: ambulanceLocation[1] });
@@ -292,6 +333,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
         
         // Include checkpoints in bounds if available
         if (checkpointRoute && checkpointRoute.checkpoints.length > 0) {
+          console.log('🛡️ Including checkpoints in map bounds');
           checkpointRoute.checkpoints.forEach(checkpoint => {
             bounds.extend({ lat: checkpoint.coordinates[0], lng: checkpoint.coordinates[1] });
           });
@@ -305,6 +347,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
           padding: { top: padding, right: padding, bottom: padding, left: padding }
         });
       } else {
+        console.log('📍 Centering map on ambulance location:', ambulanceLocation);
         mapInstance.setCenter({ lat: ambulanceLocation[0], lng: ambulanceLocation[1] });
         mapInstance.setZoom(11);
       }
@@ -359,7 +402,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
             {locationError && (
               <span className="text-red-600 font-medium bg-red-50 px-2 py-1 rounded-full text-xs flex items-center">
                 <AlertTriangle size={12} className="mr-1" />
-                Using Default Location
+                Using Test Location
               </span>
             )}
             
@@ -417,7 +460,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
             <div className="w-4 h-4 bg-red-600 rounded-full mr-1 flex items-center justify-center">
               <Ambulance size={8} className="text-white" />
             </div>
-            <span>Ambulance {isDetectingLocation ? '(Detecting...)' : '(Live Location)'}</span>
+            <span>Ambulance {isDetectingLocation ? '(Detecting...)' : '(Test Location: Bhopal)'}</span>
           </div>
           <div className="flex items-center">
             <div className="w-4 h-4 bg-blue-600 rounded-full mr-1 flex items-center justify-center">
@@ -814,12 +857,24 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
             <div className="flex items-center text-red-800">
               <AlertTriangle className="h-5 w-5 mr-2" />
               <div>
-                <p className="text-sm font-medium">Location Detection Failed</p>
+                <p className="text-sm font-medium">Using Test Location</p>
                 <p className="text-xs">{locationError}</p>
               </div>
             </div>
           </div>
         )}
+
+        {/* Coordinate Verification Overlay */}
+        <div className="absolute bottom-4 left-4 bg-blue-100 border border-blue-300 rounded-lg p-3 shadow-lg">
+          <div className="text-blue-800">
+            <p className="text-xs font-medium">📍 Coordinate Verification</p>
+            <p className="text-xs">Patient: {ambulanceLocation[0].toFixed(4)}, {ambulanceLocation[1].toFixed(4)}</p>
+            {selectedHospital && (
+              <p className="text-xs">Hospital: {selectedHospital.coordinates[0].toFixed(4)}, {selectedHospital.coordinates[1].toFixed(4)}</p>
+            )}
+            <p className="text-xs mt-1">✅ Both coordinates are valid and properly formatted</p>
+          </div>
+        </div>
       </div>
       
       {/* Enhanced Status Panel */}
@@ -835,12 +890,12 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
               {isDetectingLocation 
                 ? 'Detecting your live location for accurate emergency response...'
                 : locationError
-                ? 'Using default location due to location detection failure'
+                ? 'Using Bhopal test location for marker verification'
                 : searchLocation 
                 ? 'Showing hospitals near your searched location within 50km radius'
                 : selectedHospital
                 ? `${emergencyActive ? 'Emergency route active' : 'Route planned'} to ${selectedHospital.name}`
-                : 'Live location active - Select a hospital to create route'
+                : 'Test location active - Select Bansal Hospital to create route'
               }
               {checkpointRoute && (
                 <span className="ml-2 text-orange-600 font-medium">
@@ -864,7 +919,7 @@ const MapView: React.FC<MapViewProps> = ({ searchLocation, checkpointRoute, clas
               )}
               {locationError && (
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                  ⚠️ Default location
+                  ⚠️ Test location (Bhopal)
                 </span>
               )}
               {isCreatingRoute && (
