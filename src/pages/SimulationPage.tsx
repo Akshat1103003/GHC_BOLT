@@ -210,7 +210,7 @@ const SimulationPage: React.FC = () => {
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* Left column - Controls */}
           <div className="xl:col-span-1 space-y-6">
-            {/* Live Location Control - NEW */}
+            {/* Live Location Control */}
             <LiveLocationButton showSettings={false} />
 
             {/* Simulation controls */}
@@ -317,7 +317,7 @@ const SimulationPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Right column - Hospital selection, checkpoints, and explanation */}
+          {/* Right column - Hospital selection and checkpoints */}
           <div className="xl:col-span-1 space-y-6">
             {/* Hospital selection with search */}
             <HospitalSelect
@@ -327,7 +327,7 @@ const SimulationPage: React.FC = () => {
               onSearchLocationChange={handleSearchLocationChange}
             />
 
-            {/* Emergency Checkpoints Display */}
+            {/* Emergency Checkpoints Display - Only checkpoints */}
             <CheckpointDisplay showDetailedView={false} />
             
             {/* Simulation explanation */}
@@ -336,7 +336,7 @@ const SimulationPage: React.FC = () => {
               
               <div className="space-y-4">
                 <p className="text-gray-600 text-sm">
-                  This enhanced simulation demonstrates our complete emergency response system with real-time checkpoints and hospital coordination.
+                  This simulation demonstrates our emergency response system with real-time checkpoints along the route.
                 </p>
                 
                 <ol className="list-decimal list-inside space-y-2 text-gray-600 text-sm pl-2">
@@ -362,7 +362,7 @@ const SimulationPage: React.FC = () => {
                 
                 <div className="mt-4 p-3 bg-red-50 rounded-md">
                   <p className="text-xs text-red-800">
-                    <strong>Real-time Coordination:</strong> System integrates with live databases for synchronized emergency response across all checkpoints and hospitals.
+                    <strong>Real-time Coordination:</strong> System integrates with live databases for synchronized emergency response across all checkpoints.
                   </p>
                 </div>
               </div>

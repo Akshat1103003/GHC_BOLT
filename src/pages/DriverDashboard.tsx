@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, User, MapPin, Guitar as Hospital, Crosshair, AlertTriangle } from 'lucide-react';
-import ComprehensiveMapView from '../components/map/ComprehensiveMapView';
+import MapView from '../components/map/MapView';
 import EmergencyToggle from '../components/common/EmergencyToggle';
 import HospitalSelect from '../components/common/HospitalSelect';
 import LocationSelector from '../components/common/LocationSelector';
 import LiveLocationButton from '../components/common/LiveLocationButton';
 import CheckpointDisplay from '../components/checkpoints/CheckpointDisplay';
-import ComprehensiveCheckpointPanel from '../components/checkpoints/ComprehensiveCheckpointPanel';
 import ResetButton from '../components/common/ResetButton';
 import StatusCard from '../components/dashboard/StatusCard';
 import NotificationPanel from '../components/notifications/NotificationPanel';
@@ -48,7 +47,6 @@ const DriverDashboard: React.FC = () => {
   const [emergencyLocation, setEmergencyLocation] = useState<[number, number]>(ambulanceLocation);
   const [emergencyLocationType, setEmergencyLocationType] = useState<'current' | 'selected'>('current');
   const [emergencyLocationName, setEmergencyLocationName] = useState<string>('Current Location');
-  const [showComprehensiveView, setShowComprehensiveView] = useState(true);
 
   // Update route status when route changes
   useEffect(() => {
@@ -177,23 +175,13 @@ const DriverDashboard: React.FC = () => {
                 ? 'Detecting your live location for accurate emergency response...'
                 : locationError
                 ? 'Using default location - Live location detection failed'
-                : 'Comprehensive emergency response system with real-time medical facility tracking'
+                : 'Emergency response system with checkpoint monitoring'
               }
             </p>
           </div>
           
-          {/* View Toggle and Reset Button */}
-          <div className="mt-4 md:mt-0 flex items-center space-x-3">
-            <button
-              onClick={() => setShowComprehensiveView(!showComprehensiveView)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                showComprehensiveView
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {showComprehensiveView ? 'Comprehensive View' : 'Standard View'}
-            </button>
+          {/* Reset Button in Header */}
+          <div className="mt-4 md:mt-0">
             <ResetButton />
           </div>
         </div>
@@ -351,25 +339,18 @@ const DriverDashboard: React.FC = () => {
                 icon={<Hospital size={20} />}
               />
 
-              {/* Enhanced Map view */}
+              {/* Map view with checkpoints only */}
               <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                {showComprehensiveView ? (
-                  <ComprehensiveMapView 
-                    searchLocation={searchLocationForMap}
-                    checkpointRoute={checkpointRoute}
-                    className="w-full"
-                  />
-                ) : (
-                  <div className="p-4 text-center text-gray-500">
-                    <p>Standard map view would be displayed here</p>
-                    <p className="text-sm mt-1">Switch to Comprehensive View to see all medical facilities</p>
-                  </div>
-                )}
+                <MapView 
+                  searchLocation={searchLocationForMap}
+                  checkpointRoute={checkpointRoute}
+                  className="w-full"
+                />
               </div>
             </div>
           </div>
 
-          {/* Right column - Hospital selection, checkpoints, and notifications */}
+          {/* Right column - Hospital selection and checkpoints */}
           <div className="xl:col-span-1 space-y-6">
             {/* Hospital selection with search and confirmation */}
             <HospitalSelect
@@ -380,12 +361,8 @@ const DriverDashboard: React.FC = () => {
               onSearchLocationChange={setSearchLocationForMap}
             />
 
-            {/* Comprehensive Medical Facilities or Standard Checkpoints */}
-            {showComprehensiveView ? (
-              <ComprehensiveCheckpointPanel maxFacilities={15} />
-            ) : (
-              <CheckpointDisplay showDetailedView={false} />
-            )}
+            {/* Emergency Checkpoints Display - Only checkpoints, no other facilities */}
+            <CheckpointDisplay showDetailedView={false} />
 
             {/* Notifications */}
             <NotificationPanel
