@@ -47,7 +47,7 @@ const calculateIntermediatePoint = (
 };
 
 // Calculate accurate distance along great-circle path
-const calculateGreatCircleDistance = (
+export const calculateGreatCircleDistance = (
   point1: [number, number],
   point2: [number, number]
 ): number => {
